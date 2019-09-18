@@ -1,5 +1,6 @@
 from bp_chat.run import main
-from bp_chat.logic.common.tryable import run_in_try
+from bp_chat.logic.common.app import run_app
+
 
 if __name__ == '__main__':
-    run_in_try(main)
+    run_app(main)

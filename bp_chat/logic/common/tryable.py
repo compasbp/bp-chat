@@ -5,6 +5,14 @@ from queue import Queue
 from time import sleep
 
 
+def tryable(func):
+
+    def _new_func(*args, **kwargs):
+        run_in_try(lambda:func(*args, **kwargs))
+
+    return _new_func
+
+
 def run_in_try(func):
     try:
         func()

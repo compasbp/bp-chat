@@ -2,6 +2,14 @@
 from .tryable import ConsoleThread, run_in_try
 
 
+def as_app(func):
+
+    def _new_func():
+        run_app(func)
+
+    return _new_func
+
+
 def run_app(func):
    app = App.instance()
 

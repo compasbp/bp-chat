@@ -2,8 +2,8 @@ from sys import argv
 
 from PyQt5.QtWidgets import QPushButton, QApplication
 
-from bp_chat.logic.common.tryable import tryable
-from bp_chat.logic.common.app import as_app
+from bp_chat.core.tryable import tryable
+from bp_chat.core.app import as_app
 
 
 @as_app

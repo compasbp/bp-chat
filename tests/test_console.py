@@ -1,7 +1,7 @@
 from unittest import main as unittest_main, TestCase
 
-from bp_chat.logic.common.tryable import run_in_try
-from bp_chat.logic.common.app import App
+from bp_chat.core.tryable import run_in_try
+from bp_chat.core.app import App
 
 
 class TestConsole(TestCase):

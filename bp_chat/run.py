@@ -5,6 +5,7 @@ from PyQt5.QtWidgets import QPushButton, QApplication
 from bp_chat.core.tryable import tryable
 from bp_chat.core.app import as_app
 from bp_chat.logic.connect import Connection
+from bp_chat.gui.core.gui_thread import to_gui_thread
 
 
 @as_app
@@ -34,6 +35,7 @@ def main_gui():
         #raise Exception('njjhj')
         connection.connect()
 
+    @to_gui_thread
     @tryable
     def on_connected(server_point):
         print(f'{server_point.address}: {len(server_point.r.text)}')

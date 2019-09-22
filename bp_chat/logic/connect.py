@@ -40,7 +40,7 @@ class ServerPoint:
         self.connection = connection
 
     def connect(self):
-        self.r = get(self.address)
+        self.r = get(self.address, timeout=3)
         self.on_connected()
 
     def disconnect(self):

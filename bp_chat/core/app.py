@@ -1,5 +1,6 @@
 
 from .tryable import ConsoleThread, run_in_try
+from .action import ActionsQueue
 
 
 def as_app(func):
@@ -33,8 +34,10 @@ class App:
     def __init__(self, instance_id):
         self.__instance_id = instance_id
         ConsoleThread.instance(True, instance_id)
+        ActionsQueue.instance(True, instance_id)
 
     def close(self):
         console = ConsoleThread.stop()
+        ActionsQueue.stop()
         App.__instance = None
         console.join()

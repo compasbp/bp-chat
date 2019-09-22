@@ -3,6 +3,7 @@ from queue import Queue
 from time import sleep
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from .tryable import tryable
 
 
 class Action:
@@ -12,13 +13,19 @@ class Action:
     _percent = -1
     _last_percent_time = None
 
+    @classmethod
+    def by_target(self, target):
+        a = Action()
+        a.run = target
+        return a
+
     def start(self):
         if self.cancelled:
             self.on_cancelled()
             return
         self.started = True
         self.on_started()
-        self.run()
+        self._run()
         if not self.cancelled:
             self.on_finished()
 
@@ -41,6 +48,10 @@ class Action:
                 self._last_percent_time = now
                 self._percent = val
                 self.on_percent(val)
+
+    @tryable
+    def _run(self):
+        self.run()
 
     def run(self):
         pass

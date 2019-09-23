@@ -1,6 +1,8 @@
 
-from PyQt5.QtWidgets import QDialog, QApplication, QPushButton
-from PyQt5.QtCore import QPropertyAnimation, QAbstractAnimation, QRect, QParallelAnimationGroup, Qt
+from PyQt5.QtWidgets import (QDialog, QApplication, QPushButton, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
+                             QLayout, QGridLayout, QSpacerItem, QSizePolicy)
+from PyQt5.QtCore import QPropertyAnimation, QAbstractAnimation, QRect, QParallelAnimationGroup, Qt, QPoint
+from PyQt5.QtGui import QColor, QLinearGradient, QPainter, QBrush
 
 
 def fix_window(window):
@@ -11,13 +13,22 @@ def fix_window(window):
     window.setWindowFlags(flags)
     return window
 
+def set_widget_background(widget, color):
+    if type(color) == str:
+        color = QColor(color)
+    palette = widget.palette()
+    palette.setColor(widget.backgroundRole(), color)
+    widget.setPalette(palette)
+    widget.setAutoFillBackground(True)
+    return palette
+
 
 class AnimatedDialog(QDialog):
 
     def showEvent(self, event):
         super().showEvent(event)
 
-        duration = 500
+        duration = 300
 
         parent = self.parentWidget()
         if parent:
@@ -61,20 +72,105 @@ class AnimatedDialog(QDialog):
             parent.setWindowOpacity(1)
 
 
+class Toolbar(QWidget):
+
+    LEFT = 'left'
+    RIGHT = 'right'
+    CENTER = 'center'
+
+    POSES = {
+        LEFT: 0, CENTER: 1, RIGHT: 2
+    }
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        set_widget_background(self, '#ffc107')
+
+        h = 60
+
+        self.setMaximumHeight(h)
+        self.setMinimumHeight(h)
+
+        lay = QGridLayout(self)
+
+        # self.right_lay.setSizeConstraint(QLayout.SetMinimumSize)
+        #
+        # lay.addLayout(self.left_lay)
+        # lay.addLayout(self.center_lay)
+        # lay.addLayout(self.right_lay)
+        lay.setColumnStretch(1, 100)
+
+        self.left_widget = None
+        self.center_widget = None
+        self.right_widget = None
+
+    def set_widget(self, widget, to):
+        lay = self.layout() #getattr(self, to + '_lay')
+        last_widget = getattr(self, to + '_widget')
+
+        if last_widget:
+            lay.removeWidget(last_widget)
+
+        setattr(self, to + '_widget', widget)
+
+        lay.addWidget(widget, 0, self.POSES[to])
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setPen(Qt.NoPen)
+
+        h = 1
+
+        start_color = QColor('#777777')
+        # start_color.setAlphaF(1.0)
+        #
+        # # end_color = QColor('#777777')
+        # # end_color.setAlphaF(0.0)
+        # end_color = self.parentWidget().palette().color(self.parentWidget().backgroundRole())
+        #
+        # gradient = QLinearGradient()
+        # gradient.setColorAt(0.0, start_color)
+        # gradient.setColorAt(1.0, end_color)
+        # gradient.setStart(QPoint(0, self.height()-h))
+        # gradient.setFinalStop(QPoint(0, self.height()))
+
+        brush = QBrush(start_color)
+        painter.setBrush(brush)
+        painter.drawRect(QRect(QPoint(0, self.height()-h), QPoint(self.width(), self.height())))
+
+
+class ImagedButton(QWidget):
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setPen(Qt.NoPen)
+
 
 if __name__=='__main__':
 
     app = QApplication([])
 
-    w = fix_window(QPushButton("Test"))
+    w = fix_window(QWidget())
     w.resize(800, 800)
+    lay = QVBoxLayout(w)
+    lay.setContentsMargins(0, 0, 0, 0)
+
+    toolbar = Toolbar(w)
+    lay.addWidget(toolbar)
+
+    button = fix_window(QPushButton("Test", w))
+    toolbar.set_widget(button, Toolbar.RIGHT)
+    toolbar.set_widget(QLabel('Test'), Toolbar.CENTER)
+
+    lay.addSpacerItem(QSpacerItem(10, 10, QSizePolicy.Expanding, QSizePolicy.Expanding))
 
     def _show(*args):
         w.a = fix_window(AnimatedDialog(w))
         w.a.resize(200, 200)
         w.a.exec_()
 
-    w.clicked.connect(_show)
+    button.clicked.connect(_show)
     w.show()
 
     app.exec_()

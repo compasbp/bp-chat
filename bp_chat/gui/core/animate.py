@@ -1,10 +1,20 @@
 
 from PyQt5.QtWidgets import (QDialog, QApplication, QPushButton, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-                             QLayout, QGridLayout, QSpacerItem, QSizePolicy, QToolButton)
+                             QLayout, QGridLayout, QSpacerItem, QSizePolicy, QToolButton, QSystemTrayIcon, QMenu,
+                             QAction, QSplitter, QStackedWidget)
 from PyQt5.QtCore import (QPropertyAnimation, QAbstractAnimation, QRect, QParallelAnimationGroup, Qt, QPoint, QSize,
                           QEvent)
 from PyQt5.QtGui import QColor, QLinearGradient, QPainter, QBrush, QIcon
 
+
+def favicon():
+    return QIcon('data/images/favicon.png')
+
+def main_widget(widget:QWidget):
+    fix_window(widget)
+    widget.setWindowIcon(favicon())
+    widget.setAttribute(Qt.WA_DeleteOnClose, False)
+    return widget
 
 def fix_window(window):
     flags = window.windowFlags()
@@ -185,14 +195,111 @@ class ImagedButton(QToolButton):
     #     painter.setPen(Qt.NoPen)
 
 
+# def make_tray_icon(app, parent, main_icon):
+#     icon = SystemTrayIcon(main_icon, parent)
+#     icon.app = app
+#
+#     def _on_close(*args):
+#         print('_on_close (for tray)')
+#         icon.hide()
+#
+#     app.lastWindowClosed.connect(_on_close)
+#
+#     icon.show()
+#     return icon
+
+
+class SystemTrayIcon(QSystemTrayIcon):
+
+    app: QApplication = None
+    parent_widget: QWidget = None
+
+    def __init__(self, icon, parent, app):
+        QSystemTrayIcon.__init__(self, icon, None)
+
+        self.parent_widget = parent
+        self.app = app
+        # self.parent_widget.tray_icon = self
+
+        self.menu = QMenu(parent)
+
+        exitAction = QAction('Close BP Chat', self)
+        exitAction.triggered.connect(self.exit_chat)
+        self.menu.addAction(exitAction)
+
+        self.setContextMenu(self.menu)
+        self.activated.connect(self.iconActivated)
+
+        app.aboutToQuit.connect(self.close)
+
+    def exit_chat(self):
+        # self.close()
+        # self.parent_widget.close()
+        # self.parent_widget.deleteLater()
+        self.parent_widget.hide()
+
+    def iconActivated(self, reason):
+        if reason == QSystemTrayIcon.Trigger:
+            if self.parent_widget.isMinimized():
+                if self.parent_widget.was_maximized:
+                    self.parent_widget.showMaximized()
+                else:
+                    self.parent_widget.showNormal()
+            else:
+                self.parent_widget.showMinimized()
+
+    def close(self):
+        self.hide()
+        self.deleteLater()
+
+
+class LeftRightSplitter(QSplitter):
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        self.left_stack = QStackedWidget(self)
+        self.right_stack = QStackedWidget(self)
+
+        self.addWidget(self.left_stack)
+        self.addWidget(self.right_stack)
+
+    def add_widget(self, widget, to):
+        getattr(self, to + '_stack').addWidget(widget)
+
+
+class TopBottomSplitter(QSplitter):
+
+    def __init__(self, parent=None):
+        super().__init__(Qt.PortraitOrientation, parent)
+
+        self.top_stack = QStackedWidget(self)
+        self.bottom_stack = QStackedWidget(self)
+
+        self.addWidget(self.top_stack)
+        self.addWidget(self.bottom_stack)
+
+    def add_widget(self, widget, to):
+        getattr(self, to + '_stack').addWidget(widget)
+
+
 if __name__=='__main__':
 
     app = QApplication([])
 
-    w = fix_window(QWidget())
+    w = main_widget(QWidget())
     w.resize(800, 800)
-    lay = QVBoxLayout(w)
+    main_lay = QVBoxLayout(w)
+    main_lay.setContentsMargins(0, 0, 0, 0)
+
+    splitter = LeftRightSplitter(w)
+    main_lay.addWidget(splitter)
+
+    right_widget = main_widget(QWidget(splitter))
+    lay = QVBoxLayout(right_widget)
     lay.setContentsMargins(0, 0, 0, 0)
+
+    splitter.add_widget(right_widget, 'right')
 
     toolbar = Toolbar(w)
     lay.addWidget(toolbar)
@@ -200,7 +307,11 @@ if __name__=='__main__':
     button = fix_window(QPushButton("Test", w))
     toolbar.set_widget(button, Toolbar.RIGHT)
     toolbar.set_widget(QLabel('Test'), Toolbar.CENTER)
-    toolbar.set_widget(ImagedButton.by_filename("data/images/settings.png"), Toolbar.LEFT)
+
+    settings_button = ImagedButton.by_filename("data/images/settings.png")
+    settings_button.clicked.connect(lambda *args: app.exit(0))
+
+    toolbar.set_widget(settings_button, Toolbar.LEFT)
 
     lay.addSpacerItem(QSpacerItem(10, 10, QSizePolicy.Expanding, QSizePolicy.Expanding))
 
@@ -210,6 +321,12 @@ if __name__=='__main__':
         w.a.exec_()
 
     button.clicked.connect(_show)
+
     w.show()
+
+    tray_icon = SystemTrayIcon(favicon(), w, app)
+    tray_icon.show()
+    #tray_icon.raise_()
+    tray_icon.showMessage("BP Chat is started", "Hello!", favicon())
 
     app.exec_()

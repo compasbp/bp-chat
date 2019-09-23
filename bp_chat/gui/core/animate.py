@@ -12,8 +12,32 @@ def favicon():
 
 def main_widget(widget:QWidget):
     fix_window(widget)
+    widget.was_maximized = False
     widget.setWindowIcon(favicon())
     widget.setAttribute(Qt.WA_DeleteOnClose, False)
+
+    def closeEvent(e):
+        if widget.isActiveWindow():
+            widget.hide()
+            e.ignore()
+            return
+        else:
+            ret = super(widget.__class__, widget).closeEvent(e)
+            return ret
+
+    def changeEvent(e):
+        if e.type() == QEvent.WindowStateChange:
+            if widget.isMaximized():
+                widget.was_maximized = True
+            elif widget.isMinimized():
+                pass
+            else:
+                widget.was_maximized = False
+        return widget.__class__.changeEvent(widget, e)
+
+    widget.closeEvent = closeEvent
+    widget.changeEvent = changeEvent
+
     return widget
 
 def fix_window(window):

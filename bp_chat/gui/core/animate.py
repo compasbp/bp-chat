@@ -1,8 +1,9 @@
 
 from PyQt5.QtWidgets import (QDialog, QApplication, QPushButton, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-                             QLayout, QGridLayout, QSpacerItem, QSizePolicy)
-from PyQt5.QtCore import QPropertyAnimation, QAbstractAnimation, QRect, QParallelAnimationGroup, Qt, QPoint
-from PyQt5.QtGui import QColor, QLinearGradient, QPainter, QBrush
+                             QLayout, QGridLayout, QSpacerItem, QSizePolicy, QToolButton)
+from PyQt5.QtCore import (QPropertyAnimation, QAbstractAnimation, QRect, QParallelAnimationGroup, Qt, QPoint, QSize,
+                          QEvent)
+from PyQt5.QtGui import QColor, QLinearGradient, QPainter, QBrush, QIcon
 
 
 def fix_window(window):
@@ -35,7 +36,11 @@ class AnimatedDialog(QDialog):
             pos = parent.pos()
             size = parent.size()
             center = (pos.x() + size.width()/2, pos.y() + size.height()/2)
-            parent.setWindowOpacity(0.5)
+            #parent.setWindowOpacity(0.5)
+            shadow_widget = getattr(parent, 'shadow_widget', None)
+            if not shadow_widget:
+                shadow_widget = ShadowWidget(parent)
+            shadow_widget.show()
         else:
             desktop = QApplication.desktop()
             if desktop:
@@ -69,7 +74,32 @@ class AnimatedDialog(QDialog):
 
         parent = self.parentWidget()
         if parent:
-            parent.setWindowOpacity(1)
+            parent.shadow_widget.hide() #parent.setWindowOpacity(1)
+
+
+class ShadowWidget(QWidget):
+
+    def __init__(self, parent:QWidget=None):
+        super().__init__(parent)
+
+        color = QColor('#555555')
+        color.setAlphaF(0.5)
+
+        set_widget_background(self, color)
+
+        parent.shadow_widget = self
+
+        self.move(0, 0)
+        self.resize(parent.size())
+
+        parent.installEventFilter(self)
+
+    def eventFilter(self, obj, event):
+        if event.type() == QEvent.Resize:
+            self.resize(obj.size())
+
+        return super().eventFilter(obj, event)
+
 
 
 class Toolbar(QWidget):
@@ -94,11 +124,6 @@ class Toolbar(QWidget):
 
         lay = QGridLayout(self)
 
-        # self.right_lay.setSizeConstraint(QLayout.SetMinimumSize)
-        #
-        # lay.addLayout(self.left_lay)
-        # lay.addLayout(self.center_lay)
-        # lay.addLayout(self.right_lay)
         lay.setColumnStretch(1, 100)
 
         self.left_widget = None
@@ -106,7 +131,7 @@ class Toolbar(QWidget):
         self.right_widget = None
 
     def set_widget(self, widget, to):
-        lay = self.layout() #getattr(self, to + '_lay')
+        lay = self.layout()
         last_widget = getattr(self, to + '_widget')
 
         if last_widget:
@@ -140,11 +165,24 @@ class Toolbar(QWidget):
         painter.drawRect(QRect(QPoint(0, self.height()-h), QPoint(self.width(), self.height())))
 
 
-class ImagedButton(QWidget):
+class ImagedButton(QToolButton):
 
-    def paintEvent(self, event):
-        painter = QPainter(self)
-        painter.setPen(Qt.NoPen)
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        self.setFixedSize(32, 32)
+        self.setAutoRaise(True)
+        self.setIconSize(QSize(32, 32))
+
+    @classmethod
+    def by_filename(cls, fi):
+        obj = cls()
+        obj.setIcon(QIcon(fi))
+        return obj
+
+    # def paintEvent(self, event):
+    #     painter = QPainter(self)
+    #     painter.setPen(Qt.NoPen)
 
 
 if __name__=='__main__':
@@ -162,6 +200,7 @@ if __name__=='__main__':
     button = fix_window(QPushButton("Test", w))
     toolbar.set_widget(button, Toolbar.RIGHT)
     toolbar.set_widget(QLabel('Test'), Toolbar.CENTER)
+    toolbar.set_widget(ImagedButton.by_filename("data/images/settings.png"), Toolbar.LEFT)
 
     lay.addSpacerItem(QSpacerItem(10, 10, QSizePolicy.Expanding, QSizePolicy.Expanding))
 

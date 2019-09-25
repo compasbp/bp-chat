@@ -164,6 +164,14 @@ class Toolbar(QWidget):
         self.center_widget = None
         self.right_widget = None
 
+        self.down_shadow = DownShadow(parent)
+        self.installEventFilter(self.down_shadow)
+
+    def showEvent(self, e):
+        ret = super().showEvent(e)
+        self.down_shadow.show()
+        return ret
+
     def set_widget(self, widget, to):
         lay = self.layout()
         last_widget = getattr(self, to + '_widget')
@@ -182,21 +190,44 @@ class Toolbar(QWidget):
         h = 1
 
         start_color = QColor('#777777')
-        # start_color.setAlphaF(1.0)
-        #
-        # # end_color = QColor('#777777')
-        # # end_color.setAlphaF(0.0)
-        # end_color = self.parentWidget().palette().color(self.parentWidget().backgroundRole())
-        #
-        # gradient = QLinearGradient()
-        # gradient.setColorAt(0.0, start_color)
-        # gradient.setColorAt(1.0, end_color)
-        # gradient.setStart(QPoint(0, self.height()-h))
-        # gradient.setFinalStop(QPoint(0, self.height()))
+        start_color.setAlphaF(0.5)
 
         brush = QBrush(start_color)
         painter.setBrush(brush)
         painter.drawRect(QRect(QPoint(0, self.height()-h), QPoint(self.width(), self.height())))
+
+
+class DownShadow(QWidget):
+
+    h = 20
+
+    def eventFilter(self, obj, e):
+        if e.type() == QEvent.Resize:
+            self.resize(obj.width(), self.h)
+            self.move(obj.x(), obj.y()+obj.height())
+        return super().eventFilter(obj, e)
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setPen(Qt.NoPen)
+
+        start_color = QColor('#777777')
+        start_color.setAlphaF(0.3)
+
+        # end_color = QColor('#777777')
+        # end_color.setAlphaF(0.0)
+        end_color = self.parentWidget().palette().color(self.parentWidget().backgroundRole())
+
+        gradient = QLinearGradient()
+        gradient.setColorAt(0.0, start_color)
+        gradient.setColorAt(1.0, end_color)
+        gradient.setStart(QPoint(0, self.height()-self.h))
+        gradient.setFinalStop(QPoint(0, self.height()))
+        brush = QBrush(gradient)
+
+        #brush = QBrush(start_color)
+        painter.setBrush(brush)
+        painter.drawRect(QRect(QPoint(0, self.height()-self.h), QPoint(self.width(), self.height())))
 
 
 class ImagedButton(QToolButton):
@@ -325,7 +356,7 @@ if __name__=='__main__':
 
     splitter.add_widget(right_widget, 'right')
 
-    toolbar = Toolbar(w)
+    toolbar = Toolbar(right_widget)
     lay.addWidget(toolbar)
 
     button = fix_window(QPushButton("Test", w))

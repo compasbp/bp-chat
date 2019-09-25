@@ -338,6 +338,10 @@ class TopBottomSplitter(QSplitter):
         getattr(self, to + '_stack').addWidget(widget)
 
 
+class InfoLabel(QLabel):
+    pass
+
+
 if __name__=='__main__':
 
     app = QApplication([])
@@ -367,6 +371,10 @@ if __name__=='__main__':
     settings_button.clicked.connect(lambda *args: app.exit(0))
 
     toolbar.set_widget(settings_button, Toolbar.LEFT)
+
+    info_label = InfoLabel(right_widget)
+    info_label.setText("Some info...")
+    lay.addWidget(info_label)
 
     lay.addSpacerItem(QSpacerItem(10, 10, QSizePolicy.Expanding, QSizePolicy.Expanding))
 

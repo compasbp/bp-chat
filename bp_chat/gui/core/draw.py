@@ -1,4 +1,5 @@
-from PyQt5.QtGui import QColor, QFont, QPainter, QLinearGradient, QBrush, QRadialGradient
+from PyQt5.QtGui import (QColor, QFont, QPainter, QLinearGradient, QBrush, QRadialGradient,
+                         QBitmap)
 from PyQt5.QtCore import QPointF, Qt, QPoint, QRect
 
 
@@ -130,3 +131,44 @@ def draw_shadow_round(painter: QPainter, center, radius, part=None):
     painter.setBrush(brush)
     painter.drawRect(QRect(QPoint(left, y - r), QPoint(right, y + r)))
     #painter.drawEllipse(QPointF(left, top), radius, radius)
+
+
+def get_round_mask(size=(50, 50), to_size=(50, 50), border_radius=None):
+    _w, _h = size
+    w, h = to_size
+
+    map = QBitmap(_w, _h)
+
+    painter = QPainter(map)
+    painter.setRenderHint(QPainter.Antialiasing)
+
+    painter.setPen(QColor(0, 0, 0))
+    painter.setBrush(QColor(0, 0, 0))
+
+    left = 0
+    if _w > _h:
+        left = int((_w - _h) / 2)
+
+    rect = QRect(left, 0, w, h)
+    full_rect = QRect(0, 0, _w, _h)
+    painter.fillRect(full_rect, QColor(255, 255, 255))
+
+    if border_radius:
+        br = border_radius
+        #full_rect = QRect(br, br, _w - br * 2, _h - br * 2)
+        for i in ((br, 0, _w-br*2, _h), (0, br, _w, _h-br*2)):
+            painter.fillRect(QRect(*i), QColor(0, 0, 0))
+
+        for x, y in ((br, br), (_w-br, br), (_w-br, _h-br), (br, _h-br)):
+            painter.drawEllipse(QPoint(x, y), br, br)
+    else:
+        painter.drawEllipse(rect)
+
+    painter.end()
+
+    return map
+
+def color_from_hex(hex_color):
+    if type(hex_color) == str:
+        hex_color = QColor(hex_color)
+    return hex_color

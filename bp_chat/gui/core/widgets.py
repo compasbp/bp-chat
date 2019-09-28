@@ -13,6 +13,7 @@ class VLayoutWidget(QWidget):
 
         self.lay = QVBoxLayout(self)
         self.lay.setContentsMargins(0, 0, 0, 0)
+        self.lay.setSpacing(0)
 
     def addWidget(self, widget):
         self.lay.addWidget(widget)

@@ -1,5 +1,6 @@
 from .core.animate import *
 from .core.widgets import *
+from .models.list_model import ListView, ListModel, ListModelItem
 
 
 def main():
@@ -54,7 +55,38 @@ def main():
     lay.addWidget(info_label)
 
     lay.addSpacerItem(QSpacerItem(10, 10, QSizePolicy.Expanding, QSizePolicy.Expanding))
-    left_widget.lay.addSpacerItem(QSpacerItem(10, 10, QSizePolicy.Expanding, QSizePolicy.Expanding))
+    #left_widget.lay.addSpacerItem(QSpacerItem(10, 10, QSizePolicy.Expanding, QSizePolicy.Expanding))
+
+    list_view = ListView(left_widget)
+    left_widget.addWidget(list_view)
+
+    class Chat(ListModelItem):
+
+        def __init__(self, title):
+            self.title = title
+
+        def getName(self):
+            return self.title
+
+        def getSecondText(self):
+            return 'Some text...'
+
+        def getTimeString(self):
+            return '11:00'
+
+        def getPixmap(self):
+            return None
+
+        def getBadgesCount(self):
+            return 3
+
+    items = [
+        Chat("Chat #1"),
+        Chat("Chat #2"),
+        Chat("Chat #3"),
+    ]
+
+    list_model = ListModel(list_view, items)
 
     w.show()
 

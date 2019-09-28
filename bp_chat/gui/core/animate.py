@@ -296,6 +296,9 @@ class SystemTrayIcon(QSystemTrayIcon):
 
 class LeftRightSplitter(QSplitter):
 
+    LEFT = 'left'
+    RIGHT = 'right'
+
     def __init__(self, parent=None):
         super().__init__(parent)
 
@@ -304,6 +307,8 @@ class LeftRightSplitter(QSplitter):
 
         self.addWidget(self.left_stack)
         self.addWidget(self.right_stack)
+
+        self.setHandleWidth(0)
 
     def add_widget(self, widget, to):
         getattr(self, to + '_stack').addWidget(widget)

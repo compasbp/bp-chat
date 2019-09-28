@@ -1,22 +1,29 @@
 from .core.animate import *
+from .core.widgets import *
 
 
 def main():
     app = QApplication([])
 
     w = main_widget(QWidget())
-    w.resize(800, 800)
+    w.resize(800, 600)
     main_lay = QVBoxLayout(w)
     main_lay.setContentsMargins(0, 0, 0, 0)
 
     splitter = LeftRightSplitter(w)
     main_lay.addWidget(splitter)
 
-    right_widget = main_widget(QWidget(splitter))
+    right_widget = QWidget(splitter)
     lay = QVBoxLayout(right_widget)
     lay.setContentsMargins(0, 0, 0, 0)
 
-    splitter.add_widget(right_widget, 'right')
+    left_widget = VLayoutWidget(splitter)
+    left_toolbar = Toolbar(left_widget)
+    left_widget.addWidget(left_toolbar)
+
+    splitter.add_widget(left_widget, LeftRightSplitter.LEFT)
+    splitter.add_widget(right_widget, LeftRightSplitter.RIGHT)
+    splitter.setSizes([100, 200])
 
     toolbar = Toolbar(right_widget)
     lay.addWidget(toolbar)
@@ -35,6 +42,7 @@ def main():
     lay.addWidget(info_label)
 
     lay.addSpacerItem(QSpacerItem(10, 10, QSizePolicy.Expanding, QSizePolicy.Expanding))
+    left_widget.lay.addSpacerItem(QSpacerItem(10, 10, QSizePolicy.Expanding, QSizePolicy.Expanding))
 
     def _show(*args):
         w.a = fix_window(AnimatedDialog(w))

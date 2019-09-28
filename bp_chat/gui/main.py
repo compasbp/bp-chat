@@ -18,14 +18,19 @@ def main():
     lay.setContentsMargins(0, 0, 0, 0)
 
     left_widget = VLayoutWidget(splitter)
+
     left_toolbar = Toolbar(left_widget)
     left_widget.addWidget(left_toolbar)
 
-    settings_button = left_toolbar.add_button("settings", Toolbar.LEFT, "settings")
-    settings_button.clicked.connect(lambda *args: left_toolbar.set_page("search"))
+    left_toolbar.add_button("settings", Toolbar.LEFT, "settings")
+    left_toolbar.add_label("title", Toolbar.CENTER, "BP Chat")
+    left_toolbar.add_button("search", Toolbar.RIGHT, "search").clicked.connect(
+        lambda *args: left_toolbar.set_page("search"))
+
     left_toolbar.add_page("search")
-    back_button = left_toolbar.add_button("back", Toolbar.LEFT, "arrow_back", page='search')
-    back_button.clicked.connect(lambda *args: left_toolbar.set_page("first"))
+    left_toolbar.add_button("back", Toolbar.LEFT, "arrow_back", page='search').clicked.connect(
+        lambda *args: left_toolbar.set_page("first"))
+    left_toolbar.add_input("input", Toolbar.CENTER, page='search')
 
     splitter.add_widget(left_widget, LeftRightSplitter.LEFT)
     splitter.add_widget(right_widget, LeftRightSplitter.RIGHT)
@@ -34,12 +39,15 @@ def main():
     toolbar = Toolbar(right_widget)
     lay.addWidget(toolbar)
 
-    button = fix_window(QPushButton("Test", w))
-    toolbar.set_widget(button, Toolbar.RIGHT)
-    toolbar.set_widget(QLabel('Test'), Toolbar.CENTER)
+    def _show(*args):
+        w.a = fix_window(AnimatedDialog(w))
+        w.a.resize(200, 200)
+        w.a.exec_()
 
-    settings_button2 = toolbar.add_button("settings", Toolbar.LEFT, "settings")
-    settings_button2.clicked.connect(lambda *args: app.exit(0))
+    toolbar.add_button("group", Toolbar.LEFT, "group").clicked.connect(
+        lambda *args: app.exit(0))
+    toolbar.add_label("title", Toolbar.CENTER, 'Title')
+    toolbar.add_button("menu", Toolbar.RIGHT, "menu").clicked.connect(_show)
 
     info_label = InfoLabel(right_widget)
     info_label.setText("Some info...")
@@ -47,13 +55,6 @@ def main():
 
     lay.addSpacerItem(QSpacerItem(10, 10, QSizePolicy.Expanding, QSizePolicy.Expanding))
     left_widget.lay.addSpacerItem(QSpacerItem(10, 10, QSizePolicy.Expanding, QSizePolicy.Expanding))
-
-    def _show(*args):
-        w.a = fix_window(AnimatedDialog(w))
-        w.a.resize(200, 200)
-        w.a.exec_()
-
-    button.clicked.connect(_show)
 
     w.show()
 

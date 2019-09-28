@@ -1,4 +1,5 @@
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QGridLayout, QToolButton, QStackedLayout
+from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QGridLayout, QToolButton, QStackedLayout,
+                             QLabel, QLineEdit)
 from PyQt5.QtGui import QPainter, QBrush, QColor, QIcon
 from PyQt5.QtCore import Qt, QRect, QPoint, QEvent, QSize
 
@@ -67,6 +68,18 @@ class Toolbar(QWidget):
         self.elements[name] = button
         self.set_widget(button, to, page=page)
         return button
+
+    def add_label(self, name, to, text, page=None):
+        label = QLabel(text)
+        self.elements[name] = label
+        self.set_widget(label, to, page=page)
+        return label
+
+    def add_input(self, name, to, page=None):
+        edit = QLineEdit()
+        self.elements[name] = edit
+        self.set_widget(edit, to, page=page)
+        return edit
 
     def set_widget(self, widget, to, page=None):
         if not page:

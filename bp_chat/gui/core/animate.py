@@ -6,6 +6,8 @@ from PyQt5.QtCore import (QPropertyAnimation, QAbstractAnimation, QRect, QParall
                           QEvent)
 from PyQt5.QtGui import QColor, QLinearGradient, QPainter, QBrush, QIcon
 
+from .draw import draw_rounded_form, draw_shadow_down, draw_shadow_round
+
 
 def favicon():
     return QIcon('data/images/favicon.png')
@@ -35,7 +37,7 @@ def main_widget(widget:QWidget):
                 widget.was_maximized = False
         return widget.__class__.changeEvent(widget, e)
 
-    widget.closeEvent = closeEvent
+    #widget.closeEvent = closeEvent
     widget.changeEvent = changeEvent
 
     return widget
@@ -209,25 +211,8 @@ class DownShadow(QWidget):
 
     def paintEvent(self, event):
         painter = QPainter(self)
-        painter.setPen(Qt.NoPen)
-
-        start_color = QColor('#777777')
-        start_color.setAlphaF(0.3)
-
-        # end_color = QColor('#777777')
-        # end_color.setAlphaF(0.0)
-        end_color = self.parentWidget().palette().color(self.parentWidget().backgroundRole())
-
-        gradient = QLinearGradient()
-        gradient.setColorAt(0.0, start_color)
-        gradient.setColorAt(1.0, end_color)
-        gradient.setStart(QPoint(0, self.height()-self.h))
-        gradient.setFinalStop(QPoint(0, self.height()))
-        brush = QBrush(gradient)
-
-        #brush = QBrush(start_color)
-        painter.setBrush(brush)
-        painter.drawRect(QRect(QPoint(0, self.height()-self.h), QPoint(self.width(), self.height())))
+        sz = self.size()
+        draw_shadow_down(painter, (0, 0), (sz.width(), sz.height()))
 
 
 class ImagedButton(QToolButton):
@@ -288,10 +273,11 @@ class SystemTrayIcon(QSystemTrayIcon):
         app.aboutToQuit.connect(self.close)
 
     def exit_chat(self):
-        # self.close()
+        self.close()
+        self.app.exit(0)
         # self.parent_widget.close()
         # self.parent_widget.deleteLater()
-        self.parent_widget.hide()
+        # self.parent_widget.hide()
 
     def iconActivated(self, reason):
         if reason == QSystemTrayIcon.Trigger:
@@ -339,57 +325,86 @@ class TopBottomSplitter(QSplitter):
 
 
 class InfoLabel(QLabel):
-    pass
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setMinimumHeight(50)
+
+    def paintEvent(self, event):
+        #ret = super().paintEvent(event)
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        sz = self.size()
+        padding = 5
+        width = sz.width() - padding*2
+        height = 30
+        r = height / 2
+        shadow_ln = 10
+
+        draw_shadow_round(painter, (r+padding-1, height), shadow_ln, part='left')
+        draw_shadow_round(painter, (padding+width-r+1, height), shadow_ln, part='right')
+        draw_rounded_form(painter, (padding, 0), (width, height))
+        draw_shadow_down(painter, (padding+r, height), (width-r*2, shadow_ln))
+
+        painter.setPen(QColor(255, 255, 255))
+        #font = painter.font()
+        # font = QFont("Arial")
+        # font.setPixelSize(font_pixel_size)
+        #font.setPointSize(6)
+        #font.setBold(True)
+        #painter.setFont(font)
+        painter.drawText(30, 18, self.text())
+        #return ret
 
 
-if __name__=='__main__':
-
-    app = QApplication([])
-
-    w = main_widget(QWidget())
-    w.resize(800, 800)
-    main_lay = QVBoxLayout(w)
-    main_lay.setContentsMargins(0, 0, 0, 0)
-
-    splitter = LeftRightSplitter(w)
-    main_lay.addWidget(splitter)
-
-    right_widget = main_widget(QWidget(splitter))
-    lay = QVBoxLayout(right_widget)
-    lay.setContentsMargins(0, 0, 0, 0)
-
-    splitter.add_widget(right_widget, 'right')
-
-    toolbar = Toolbar(right_widget)
-    lay.addWidget(toolbar)
-
-    button = fix_window(QPushButton("Test", w))
-    toolbar.set_widget(button, Toolbar.RIGHT)
-    toolbar.set_widget(QLabel('Test'), Toolbar.CENTER)
-
-    settings_button = ImagedButton.by_filename("data/images/settings.png")
-    settings_button.clicked.connect(lambda *args: app.exit(0))
-
-    toolbar.set_widget(settings_button, Toolbar.LEFT)
-
-    info_label = InfoLabel(right_widget)
-    info_label.setText("Some info...")
-    lay.addWidget(info_label)
-
-    lay.addSpacerItem(QSpacerItem(10, 10, QSizePolicy.Expanding, QSizePolicy.Expanding))
-
-    def _show(*args):
-        w.a = fix_window(AnimatedDialog(w))
-        w.a.resize(200, 200)
-        w.a.exec_()
-
-    button.clicked.connect(_show)
-
-    w.show()
-
-    tray_icon = SystemTrayIcon(favicon(), w, app)
-    tray_icon.show()
-    #tray_icon.raise_()
-    tray_icon.showMessage("BP Chat is started", "Hello!", favicon())
-
-    app.exec_()
+# if __name__=='__main__':
+#
+#     app = QApplication([])
+#
+#     w = main_widget(QWidget())
+#     w.resize(800, 800)
+#     main_lay = QVBoxLayout(w)
+#     main_lay.setContentsMargins(0, 0, 0, 0)
+#
+#     splitter = LeftRightSplitter(w)
+#     main_lay.addWidget(splitter)
+#
+#     right_widget = main_widget(QWidget(splitter))
+#     lay = QVBoxLayout(right_widget)
+#     lay.setContentsMargins(0, 0, 0, 0)
+#
+#     splitter.add_widget(right_widget, 'right')
+#
+#     toolbar = Toolbar(right_widget)
+#     lay.addWidget(toolbar)
+#
+#     button = fix_window(QPushButton("Test", w))
+#     toolbar.set_widget(button, Toolbar.RIGHT)
+#     toolbar.set_widget(QLabel('Test'), Toolbar.CENTER)
+#
+#     settings_button = ImagedButton.by_filename("data/images/settings.png")
+#     settings_button.clicked.connect(lambda *args: app.exit(0))
+#
+#     toolbar.set_widget(settings_button, Toolbar.LEFT)
+#
+#     info_label = InfoLabel(right_widget)
+#     info_label.setText("Some info...")
+#     lay.addWidget(info_label)
+#
+#     lay.addSpacerItem(QSpacerItem(10, 10, QSizePolicy.Expanding, QSizePolicy.Expanding))
+#
+#     def _show(*args):
+#         w.a = fix_window(AnimatedDialog(w))
+#         w.a.resize(200, 200)
+#         w.a.exec_()
+#
+#     button.clicked.connect(_show)
+#
+#     w.show()
+#
+#     tray_icon = SystemTrayIcon(favicon(), w, app)
+#     tray_icon.show()
+#     #tray_icon.raise_()
+#     tray_icon.showMessage("BP Chat is started", "Hello!", favicon())
+#
+#     app.exec_()

@@ -24,26 +24,28 @@ def main_api():
 
 
 def main_gui():
+    from bp_chat.gui.main import main as _main
+    _main()
 
-    #raise Exception(1)
-    app = QApplication([])
-    w = QPushButton('Connect')
-    connection = Connection(['http://ya.ru', 'http://google.com'])
-
-    @tryable
-    def tst(*args):
-        #raise Exception('njjhj')
-        connection.connect()
-
-    @to_gui_thread
-    @tryable
-    def on_connected(server_point):
-        print(f'{server_point.address}: {len(server_point.r.text)}')
-        w.setText('Connected')
-
-    connection.on_connected = on_connected
-
-    w.clicked.connect(tst)
-
-    w.show()
-    app.exec_()
+    # #raise Exception(1)
+    # app = QApplication([])
+    # w = QPushButton('Connect')
+    # connection = Connection(['http://ya.ru', 'http://google.com'])
+    #
+    # @tryable
+    # def tst(*args):
+    #     #raise Exception('njjhj')
+    #     connection.connect()
+    #
+    # @to_gui_thread
+    # @tryable
+    # def on_connected(server_point):
+    #     print(f'{server_point.address}: {len(server_point.r.text)}')
+    #     w.setText('Connected')
+    #
+    # connection.on_connected = on_connected
+    #
+    # w.clicked.connect(tst)
+    #
+    # w.show()
+    # app.exec_()

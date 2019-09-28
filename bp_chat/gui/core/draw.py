@@ -2,6 +2,16 @@ from PyQt5.QtGui import QColor, QFont, QPainter, QLinearGradient, QBrush, QRadia
 from PyQt5.QtCore import QPointF, Qt, QPoint, QRect
 
 
+def set_widget_background(widget, color):
+    if type(color) == str:
+        color = QColor(color)
+    palette = widget.palette()
+    palette.setColor(widget.backgroundRole(), color)
+    widget.setPalette(palette)
+    widget.setAutoFillBackground(True)
+    return palette
+
+
 def draw_badges(painter, badges, left, top, font_pixel_size=10, factor=1, muted=False):
 
     # draw badges

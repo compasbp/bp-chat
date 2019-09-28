@@ -21,6 +21,12 @@ def main():
     left_toolbar = Toolbar(left_widget)
     left_widget.addWidget(left_toolbar)
 
+    settings_button = left_toolbar.add_button("settings", Toolbar.LEFT, "settings")
+    settings_button.clicked.connect(lambda *args: left_toolbar.set_page("search"))
+    left_toolbar.add_page("search")
+    back_button = left_toolbar.add_button("back", Toolbar.LEFT, "arrow_back", page='search')
+    back_button.clicked.connect(lambda *args: left_toolbar.set_page("first"))
+
     splitter.add_widget(left_widget, LeftRightSplitter.LEFT)
     splitter.add_widget(right_widget, LeftRightSplitter.RIGHT)
     splitter.setSizes([100, 200])
@@ -32,10 +38,8 @@ def main():
     toolbar.set_widget(button, Toolbar.RIGHT)
     toolbar.set_widget(QLabel('Test'), Toolbar.CENTER)
 
-    settings_button = ImagedButton.by_filename("data/images/settings.png")
-    settings_button.clicked.connect(lambda *args: app.exit(0))
-
-    toolbar.set_widget(settings_button, Toolbar.LEFT)
+    settings_button2 = toolbar.add_button("settings", Toolbar.LEFT, "settings")
+    settings_button2.clicked.connect(lambda *args: app.exit(0))
 
     info_label = InfoLabel(right_widget)
     info_label.setText("Some info...")

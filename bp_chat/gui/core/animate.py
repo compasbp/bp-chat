@@ -6,7 +6,7 @@ from PyQt5.QtCore import (QPropertyAnimation, QAbstractAnimation, QRect, QParall
                           QEvent)
 from PyQt5.QtGui import QColor, QLinearGradient, QPainter, QBrush, QIcon
 
-from .draw import draw_rounded_form, draw_shadow_down, draw_shadow_round
+from .draw import draw_rounded_form, draw_shadow_down, draw_shadow_round, set_widget_background
 
 
 def favicon():
@@ -50,14 +50,7 @@ def fix_window(window):
     window.setWindowFlags(flags)
     return window
 
-def set_widget_background(widget, color):
-    if type(color) == str:
-        color = QColor(color)
-    palette = widget.palette()
-    palette.setColor(widget.backgroundRole(), color)
-    widget.setPalette(palette)
-    widget.setAutoFillBackground(True)
-    return palette
+
 
 
 class AnimatedDialog(QDialog):
@@ -135,118 +128,6 @@ class ShadowWidget(QWidget):
             self.resize(obj.size())
 
         return super().eventFilter(obj, event)
-
-
-
-class Toolbar(QWidget):
-
-    LEFT = 'left'
-    RIGHT = 'right'
-    CENTER = 'center'
-
-    POSES = {
-        LEFT: 0, CENTER: 1, RIGHT: 2
-    }
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-
-        set_widget_background(self, '#ffc107')
-
-        h = 60
-
-        self.setMaximumHeight(h)
-        self.setMinimumHeight(h)
-
-        lay = QGridLayout(self)
-
-        lay.setColumnStretch(1, 100)
-
-        self.left_widget = None
-        self.center_widget = None
-        self.right_widget = None
-
-        self.down_shadow = DownShadow(parent)
-        self.installEventFilter(self.down_shadow)
-
-    def showEvent(self, e):
-        ret = super().showEvent(e)
-        self.down_shadow.show()
-        return ret
-
-    def set_widget(self, widget, to):
-        lay = self.layout()
-        last_widget = getattr(self, to + '_widget')
-
-        if last_widget:
-            lay.removeWidget(last_widget)
-
-        setattr(self, to + '_widget', widget)
-
-        lay.addWidget(widget, 0, self.POSES[to])
-
-    def paintEvent(self, event):
-        painter = QPainter(self)
-        painter.setPen(Qt.NoPen)
-
-        h = 1
-
-        start_color = QColor('#777777')
-        start_color.setAlphaF(0.5)
-
-        brush = QBrush(start_color)
-        painter.setBrush(brush)
-        painter.drawRect(QRect(QPoint(0, self.height()-h), QPoint(self.width(), self.height())))
-
-
-class DownShadow(QWidget):
-
-    h = 20
-
-    def eventFilter(self, obj, e):
-        if e.type() == QEvent.Resize:
-            self.resize(obj.width(), self.h)
-            self.move(obj.x(), obj.y()+obj.height())
-        return super().eventFilter(obj, e)
-
-    def paintEvent(self, event):
-        painter = QPainter(self)
-        sz = self.size()
-        draw_shadow_down(painter, (0, 0), (sz.width(), sz.height()))
-
-
-class ImagedButton(QToolButton):
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-
-        self.setFixedSize(32, 32)
-        self.setAutoRaise(True)
-        self.setIconSize(QSize(32, 32))
-
-    @classmethod
-    def by_filename(cls, fi):
-        obj = cls()
-        obj.setIcon(QIcon(fi))
-        return obj
-
-    # def paintEvent(self, event):
-    #     painter = QPainter(self)
-    #     painter.setPen(Qt.NoPen)
-
-
-# def make_tray_icon(app, parent, main_icon):
-#     icon = SystemTrayIcon(main_icon, parent)
-#     icon.app = app
-#
-#     def _on_close(*args):
-#         print('_on_close (for tray)')
-#         icon.hide()
-#
-#     app.lastWindowClosed.connect(_on_close)
-#
-#     icon.show()
-#     return icon
 
 
 class SystemTrayIcon(QSystemTrayIcon):

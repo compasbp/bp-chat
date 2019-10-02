@@ -1,9 +1,9 @@
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QGridLayout, QToolButton, QStackedLayout,
-                             QLabel, QLineEdit)
+                             QLabel, QLineEdit, QStackedWidget, QSplitter)
 from PyQt5.QtGui import QPainter, QBrush, QColor, QIcon
 from PyQt5.QtCore import Qt, QRect, QPoint, QEvent, QSize
 
-from .draw import set_widget_background, draw_shadow_down
+from .draw import set_widget_background, draw_shadow_down, draw_shadow_round, draw_rounded_form
 
 
 class VLayoutWidget(QWidget):
@@ -152,3 +152,72 @@ class ImagedButton(QToolButton):
         obj = cls()
         obj.setIcon(QIcon(fi))
         return obj
+
+
+
+class LeftRightSplitter(QSplitter):
+
+    LEFT = 'left'
+    RIGHT = 'right'
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        self.left_stack = QStackedWidget(self)
+        self.right_stack = QStackedWidget(self)
+
+        self.addWidget(self.left_stack)
+        self.addWidget(self.right_stack)
+
+        self.setHandleWidth(0)
+
+    def add_widget(self, widget, to):
+        getattr(self, to + '_stack').addWidget(widget)
+
+
+class TopBottomSplitter(QSplitter):
+
+    def __init__(self, parent=None):
+        super().__init__(Qt.PortraitOrientation, parent)
+
+        self.top_stack = QStackedWidget(self)
+        self.bottom_stack = QStackedWidget(self)
+
+        self.addWidget(self.top_stack)
+        self.addWidget(self.bottom_stack)
+
+    def add_widget(self, widget, to):
+        getattr(self, to + '_stack').addWidget(widget)
+
+
+class InfoLabel(QLabel):
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setMinimumHeight(50)
+
+    def paintEvent(self, event):
+        #ret = super().paintEvent(event)
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        sz = self.size()
+        padding = 5
+        width = sz.width() - padding*2
+        height = 30
+        r = height / 2
+        shadow_ln = 10
+
+        draw_shadow_round(painter, (r+padding-1, height), shadow_ln, part='left')
+        draw_shadow_round(painter, (padding+width-r+1, height), shadow_ln, part='right')
+        draw_rounded_form(painter, (padding, 0), (width, height))
+        draw_shadow_down(painter, (padding+r, height), (width-r*2, shadow_ln))
+
+        painter.setPen(QColor(255, 255, 255))
+        #font = painter.font()
+        # font = QFont("Arial")
+        # font.setPixelSize(font_pixel_size)
+        #font.setPointSize(6)
+        #font.setBold(True)
+        #painter.setFont(font)
+        painter.drawText(30, 18, self.text())
+        #return ret

@@ -11,15 +11,16 @@ from bp_chat.logic.data import ServerData, User, Chat, Message
 def main():
     app = QApplication([])
 
-    server_data = ServerData(users={
+    users = {
         1: User(1, 'wind'),
         2: User(2, 'serg'),
         3: User(3, 'Lev'),
-    }, chats={
+    }
+    server_data = ServerData(users=users, chats={
         1: Chat(1, 'Test chat 1', [], {
-            1: Message(id=1, sender=None, chat=None, text="Hello 1!", datetime=datetime.now()),
-            2: Message(id=2, sender=None, chat=None, text="Hello 2!", datetime=datetime.now()),
-            3: Message(id=3, sender=None, chat=None, text="Hello 3!", datetime=datetime.now()),
+            1: Message(id=1, sender=users[1], chat=None, text="Hello 1!", datetime=datetime.now()),
+            2: Message(id=2, sender=users[2], chat=None, text="Hello 2!", datetime=datetime.now()),
+            3: Message(id=3, sender=users[1], chat=None, text="Hello 3!", datetime=datetime.now()),
         }),
         2: Chat(1, 'Test chat 2', [], []),
         3: Chat(1, 'Test chat 3', [], []),

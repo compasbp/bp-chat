@@ -7,6 +7,7 @@ from PyQt5.QtCore import QAbstractListModel, QSize, QPointF, QRectF, pyqtSignal,
 from threading import Timer
 
 from bp_chat.gui.core.draw import draw_badges, get_round_mask, color_from_hex
+from .funcs import item_from_object
 
 
 class ListView(QListView):
@@ -87,10 +88,7 @@ class ListModel(QAbstractListModel):
     def data(self, index, role=None):
         key = self._keys_list[index.row()]
         item_pre = self.items_dict[key]
-        item = getattr(item_pre, 'item', None)
-        if not item:
-            item = self.model_item(item_pre)
-            item_pre.item = item
+        item = item_from_object(item_pre, self.model_item)
         return item
 
     # def updateDraws(self):

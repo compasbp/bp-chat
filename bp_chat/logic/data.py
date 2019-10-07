@@ -34,6 +34,13 @@ class Chat:
         self.users = users
         self.messages = messages
 
+    def get_last_message(self):
+        if len(self.messages) == 0:
+            return None
+        keys = list(self.messages.keys())
+        key = max(keys)
+        return self.messages[key]
+
 
 class Message:
 

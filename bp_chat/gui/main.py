@@ -19,7 +19,7 @@ def main():
     server_data = ServerData(users=users, chats={
         1: Chat(1, 'Test chat 1', [], {
             1: Message(id=1, sender=users[1], chat=None, text="Hello 1!", datetime=datetime.now()),
-            2: Message(id=2, sender=users[2], chat=None, text="Hello 2!", datetime=datetime.now()),
+            2: Message(id=2, sender=users[2], chat=None, text="Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.", datetime=datetime.now()),
             3: Message(id=3, sender=users[1], chat=None, text="Hello 3!", datetime=datetime.now()),
         }),
         2: Chat(1, 'Test chat 2', [], []),

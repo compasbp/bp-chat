@@ -32,7 +32,11 @@ class ChatItem(ListModelItem):
         return self.chat.title
 
     def getSecondText(self):
-        return 'Some text...'
+        message = self.chat.get_last_message()
+        if message:
+            return message.text
+        else:
+            return ''
 
     def getTimeString(self):
         return '11:00'

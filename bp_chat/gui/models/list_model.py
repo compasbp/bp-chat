@@ -27,11 +27,16 @@ class ListModel(QAbstractListModel):
     _updateDraws__Signal = pyqtSignal()
     _updateDraws__Timer = None
 
-    def __init__(self, listView, items_list):
+    _items_dict: {str: object}
+    _keys_list: []
+    _model_item = None
+
+    def __init__(self, listView, items_dict=None):
         super().__init__()
 
-        self._items_list = items_list
-        self.items_list = items_list
+        if not items_dict:
+            items_dict = {}
+        self.items_dict = items_dict
 
         self.delegate = ListDelegate(listView, self)
 
@@ -42,7 +47,24 @@ class ListModel(QAbstractListModel):
 
         listView.setModel(self)
 
-        self._updateDraws__Signal.connect(self._updateDraws__Slot)
+        #self._updateDraws__Signal.connect(self._updateDraws__Slot)
+
+    @property
+    def items_dict(self):
+        return self._items_dict
+
+    @items_dict.setter
+    def items_dict(self, val):
+        self._items_dict = val
+        self._keys_list = sorted(list(val.keys()))
+
+    @property
+    def model_item(self):
+        return self._model_item
+
+    @model_item.setter
+    def model_item(self, val):
+        self._model_item = val
 
     def set_auto_update_items(self, value):
         self._auto_update_items = value
@@ -57,37 +79,43 @@ class ListModel(QAbstractListModel):
         self.selected_item = item
 
     def rowCount(self, parent=None):
-        return len(self.items_list)
+        return len(self.items_dict)
 
     def columnCount(self, parent):
         return 1
 
     def data(self, index, role=None):
-        return self.items_list[index.row()]
+        key = self._keys_list[index.row()]
+        item_pre = self.items_dict[key]
+        item = getattr(item_pre, 'item', None)
+        if not item:
+            item = self.model_item(item_pre)
+            item_pre.item = item
+        return item
 
-    def updateDraws(self):
-        if self._updateDraws__Timer:
-            self._updateDraws__Timer.cancel()
-        self._updateDraws__Timer = Timer(0.1, self._updateDraws__Start)
-        self._updateDraws__Timer.start()
-
-    def _updateDraws__Start(self):
-        self._updateDraws__Signal.emit()
-
-    def _updateDraws__Slot(self):
-        self.prepareItems()
-        self.beginResetModel()
-        self.endResetModel()
-
-    def prepareItems(self):
-        if not self._auto_update_items:
-            return
-
-        self.items_list = self._items_list
-        if self.filter:
-            self.items_list = self.filter(self.items_list)
-        if self.sorter:
-            self.items_list = self.sorter(self.items_list)
+    # def updateDraws(self):
+    #     if self._updateDraws__Timer:
+    #         self._updateDraws__Timer.cancel()
+    #     self._updateDraws__Timer = Timer(0.1, self._updateDraws__Start)
+    #     self._updateDraws__Timer.start()
+    #
+    # def _updateDraws__Start(self):
+    #     self._updateDraws__Signal.emit()
+    #
+    # def _updateDraws__Slot(self):
+    #     self.prepareItems()
+    #     self.beginResetModel()
+    #     self.endResetModel()
+    #
+    # def prepareItems(self):
+    #     if not self._auto_update_items:
+    #         return
+    #
+    #     self.items_list = self._items_list
+    #     if self.filter:
+    #         self.items_list = self.filter(self.items_list)
+    #     if self.sorter:
+    #         self.items_list = self.sorter(self.items_list)
 
     def getCurrentItemIndex(self):
         return -1
@@ -162,7 +190,7 @@ class ListDelegate(QItemDelegate):
 
         painter.setRenderHint(QPainter.Antialiasing)
 
-        item = self.list_model.items_list[index.row()]
+        item = self.list_model.data(index)
 
         self.fillRect(painter, item, index.row(), option)
 
@@ -288,7 +316,7 @@ class ListDelegate(QItemDelegate):
             painter.drawEllipse(QPointF(left + 45 + 8, top + 40 + 8), 6, 6)
 
     def sizeHint(self, option, index):
-        item = self.list_model.items_list[index.row()]
+        item = self.list_model.data(index)
         h = self.list_model.getItemHeight(item, width=280)
         return QSize(280, h)
 

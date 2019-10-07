@@ -29,32 +29,6 @@ class LeftWidget(VLayoutWidget):
         update_button = QPushButton("Update")
         self.addWidget(update_button)
 
-        class Chat(ListModelItem):
-
-            def __init__(self, title):
-                self.title = title
-
-            def getName(self):
-                return self.title
-
-            def getSecondText(self):
-                return 'Some text...'
-
-            def getTimeString(self):
-                return '11:00'
-
-            def getPixmap(self):
-                return None
-
-            def getBadgesCount(self):
-                return 3
-
-        items = [
-            Chat("Chat #1"),
-            Chat("Chat #2"),
-            Chat("Chat #3"),
-        ]
-        list_model = ListModel(list_view, items)
-
+        self.list_model = ListModel(list_view)
         self.list_view = list_view
 

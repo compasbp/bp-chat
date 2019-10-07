@@ -26,7 +26,15 @@ class RightWidget(VLayoutWidget):
         info_label.setText("Some info...")
         self.addWidget(info_label)
 
-        self.lay.addSpacerItem(QSpacerItem(10, 10, QSizePolicy.Expanding, QSizePolicy.Expanding))
-        # left_widget.lay.addSpacerItem(QSpacerItem(10, 10, QSizePolicy.Expanding, QSizePolicy.Expanding))
+        #self.lay.addSpacerItem(QSpacerItem(10, 10, QSizePolicy.Expanding, QSizePolicy.Expanding))
 
         self.toolbar = toolbar
+
+        list_view = ListView(self)
+        self.addWidget(list_view)
+
+        # update_button = QPushButton("Update")
+        # self.addWidget(update_button)
+
+        self.list_model = ListModel(list_view)
+        self.list_view = list_view

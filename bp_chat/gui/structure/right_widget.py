@@ -11,6 +11,8 @@ class RightWidget(VLayoutWidget):
         toolbar = Toolbar(self)
         self.addWidget(toolbar)
 
+        set_widget_background(self, "#ffffff")
+
         def _show(*args):
             # w.a = fix_window(AnimatedDialog(w))
             # w.a.resize(200, 200)
@@ -38,3 +40,8 @@ class RightWidget(VLayoutWidget):
 
         self.list_model = ListModel(list_view)
         self.list_view = list_view
+
+        self.message_input = MessageInputWidget()
+        self.addWidget(self.message_input)
+
+        self.setMinimumWidth(500)

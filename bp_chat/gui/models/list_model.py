@@ -1,6 +1,6 @@
 
 
-from PyQt5.QtWidgets import QItemDelegate, QListView
+from PyQt5.QtWidgets import QItemDelegate, QListView, QFrame
 from PyQt5.QtGui import QColor, QPainter, QFont
 from PyQt5.QtCore import QAbstractListModel, QSize, QPointF, QRectF, pyqtSignal, QEvent
 
@@ -14,6 +14,10 @@ class ListView(QListView):
 
     _selected_callback = None
 
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        self.setFrameShape(QFrame.NoFrame)
 
     def setSelectedCallback(self, callback):
         self._selected_callback = callback

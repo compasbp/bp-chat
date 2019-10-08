@@ -1,5 +1,5 @@
-from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QGridLayout, QToolButton, QStackedLayout,
-                             QLabel, QLineEdit, QStackedWidget, QSplitter)
+from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QToolButton, QStackedLayout,
+                             QLabel, QLineEdit, QStackedWidget, QSplitter, QTextEdit, QFrame)
 from PyQt5.QtGui import QPainter, QBrush, QColor, QIcon
 from PyQt5.QtCore import Qt, QRect, QPoint, QEvent, QSize
 
@@ -8,11 +8,13 @@ from .draw import set_widget_background, draw_shadow_down, draw_shadow_round, dr
 
 class VLayoutWidget(QWidget):
 
+    MARGINS = (0, 0, 0, 0)
+
     def __init__(self, parent=None):
         super().__init__(parent)
 
         self.lay = QVBoxLayout(self)
-        self.lay.setContentsMargins(0, 0, 0, 0)
+        self.lay.setContentsMargins(*self.MARGINS)
         self.lay.setSpacing(0)
 
     def addWidget(self, widget):
@@ -25,6 +27,10 @@ class Toolbar(QWidget):
     LEFT = 'left'
     RIGHT = 'right'
     CENTER = 'center'
+    BOTTOM = 'bottom'
+    TOP = 'top'
+
+    LINE_HEIGHT = 60
 
     POSES = {
         LEFT: 0, CENTER: 1, RIGHT: 2
@@ -35,40 +41,59 @@ class Toolbar(QWidget):
 
         set_widget_background(self, '#ffc107')
 
-        h = 60
+        self.lay = QVBoxLayout(self)
+        self.lay.setSpacing(0)
+        self.lay.setContentsMargins(0, 0, 0, 0)
+        self.stack_top = QStackedLayout()
+        self.stack_top.setContentsMargins(0, 0, 0, 0)
+        self.stack_bottom = QStackedLayout()
+        self.stack_bottom.setContentsMargins(0, 0, 0, 0)
+        self.lay.addLayout(self.stack_top)
+        self.lay.addLayout(self.stack_bottom)
 
-        self.setMaximumHeight(h)
-        self.setMinimumHeight(h)
-
-        self.stack = QStackedLayout(self)
-
-        self.pages = {}
+        self.pages_top = {}
+        self.pages_bottom = {}
         self.elements = {}
 
-        self.current_page = self.add_page('first')
+        self.update_height()
+
+        self.add_page('first')
 
         self.down_shadow = DownShadow(parent)
         self.installEventFilter(self.down_shadow)
+
+    def update_height(self):
+        h = self.LINE_HEIGHT
+        if len(self.pages_bottom) > 0:
+            h *= 2
+        self.setMaximumHeight(h)
+        self.setMinimumHeight(h)
 
     def showEvent(self, e):
         ret = super().showEvent(e)
         self.down_shadow.show()
         return ret
 
-    def add_page(self, name):
-        page = ToolbarPage(len(self.pages), self)
-        self.pages[name] = page
-        self.stack.addWidget(page)
+    def add_page(self, name, part=TOP):
+        page = ToolbarPage(len(getattr(self, 'pages_' + part)), self)
+        getattr(self, 'pages_' + part)[name] = page
+        getattr(self, 'stack_' + part).addWidget(page)
         return page
 
-    def set_page(self, name):
-        self.stack.setCurrentIndex(self.pages[name].page_num)
+    def set_page(self, name, part=TOP):
+        getattr(self, 'stack_' + part).setCurrentIndex(getattr(self, 'pages_' + part)[name].page_num)
 
-    def add_button(self, name, to, iconname, page=None):
+    def add_button(self, name, to, iconname, page=None, part=TOP):
         button = ImagedButton.by_filename("data/images/"+iconname+".png")
         self.elements[name] = button
-        self.set_widget(button, to, page=page)
+        self.set_widget(button, to, page=page, part=part)
         return button
+
+    def add_buttons_group(self, name, to=CENTER, page=None, part=TOP):
+        button_group = ButtonsGroup()
+        self.elements[name] = button_group
+        self.set_widget(button_group, to, page=page, part=part)
+        return button_group
 
     def add_label(self, name, to, text, page=None):
         label = QLabel(text)
@@ -82,10 +107,15 @@ class Toolbar(QWidget):
         self.set_widget(edit, to, page=page)
         return edit
 
-    def set_widget(self, widget, to, page=None):
+    def set_widget(self, widget, to, page=None, part=TOP):
         if not page:
             page = 'first'
-        page = self.pages[page]
+
+        if part == Toolbar.BOTTOM and len(self.pages_bottom) == 0:
+            self.add_page('first', part=Toolbar.BOTTOM)
+            self.update_height()
+
+        page = getattr(self, 'pages_' + part)[page]
 
         lay = page.lay
         last_widget = getattr(page, to + '_widget')
@@ -117,9 +147,30 @@ class ToolbarPage(QWidget):
 
         self.lay = QGridLayout(self)
         self.lay.setColumnStretch(1, 100)
+        self.lay.setContentsMargins(10, 0, 10, 0)
         self.left_widget = None
         self.right_widget = None
         self.center_widget = None
+
+        h = 60
+        self.setMaximumHeight(h)
+        self.setMinimumHeight(h)
+
+
+class ButtonsGroup(QWidget):
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        self.lay = QHBoxLayout(self)
+        self.buttons = {}
+
+    def add_button(self, name, iconname, text):
+        button = ImagedButton.by_filename("data/images/"+iconname+".png")
+        button.setText(text)
+        self.buttons[name] = button
+        self.lay.addWidget(button)
+        return button
 
 
 class DownShadow(QWidget):
@@ -146,6 +197,10 @@ class ImagedButton(QToolButton):
         self.setFixedSize(32, 32)
         self.setAutoRaise(True)
         self.setIconSize(QSize(32, 32))
+
+    @classmethod
+    def by_iconname(cls, iconname):
+        return ImagedButton.by_filename("data/images/"+iconname+".png")
 
     @classmethod
     def by_filename(cls, fi):
@@ -221,3 +276,50 @@ class InfoLabel(QLabel):
         #painter.setFont(font)
         painter.drawText(30, 18, self.text())
         #return ret
+
+
+class MessageInputWidget(QWidget):
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        self.lay = QVBoxLayout(self)
+        self.lay.setSpacing(0)
+        self.lay.setContentsMargins(0, 1, 0, 0)
+        self.stack_top = QStackedLayout()
+        self.stack_top.setContentsMargins(0, 0, 0, 0)
+        self.stack_bottom = QStackedLayout()
+        self.stack_bottom.setContentsMargins(0, 0, 0, 0)
+        self.lay.addLayout(self.stack_top)
+        self.lay.addLayout(self.stack_bottom)
+
+        self.input_line = InputLine(self)
+        self.stack_bottom.addWidget(self.input_line)
+
+        self.setMaximumHeight(100)
+
+    def paintEvent(self, QPaintEvent):
+        painter = QPainter(self)
+        painter.setPen(Qt.NoPen)
+
+        start_color = QColor('#777777')
+        start_color.setAlphaF(0.5)
+
+        painter.setBrush(QBrush(start_color))
+        painter.drawRect(QRect(QPoint(0, 0), QPoint(self.width(), 0)))
+
+
+class InputLine(QWidget):
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        self.lay = QGridLayout(self)
+        self.lay.setColumnStretch(0, 100)
+        self.lay.setContentsMargins(0, 0, 0, 0)
+
+        self.text_edit = QTextEdit()
+        self.text_edit.setFrameShape(QFrame.NoFrame)
+        self.send_button = ImagedButton.by_iconname("send")
+        self.lay.addWidget(self.text_edit, 0, 0)
+        self.lay.addWidget(self.send_button, 0, 1)

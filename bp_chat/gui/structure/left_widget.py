@@ -5,6 +5,8 @@ from ..models.list_model import ListView, ListModel, ListModelItem
 
 class LeftWidget(VLayoutWidget):
 
+    MARGINS = (0, 0, 1, 0)
+
     def __init__(self, splitter):
         super().__init__(splitter)
 
@@ -21,6 +23,11 @@ class LeftWidget(VLayoutWidget):
             lambda *args: toolbar.set_page("first"))
         toolbar.add_input("input", Toolbar.CENTER, page='search')
 
+        buttons_group = toolbar.add_buttons_group("buttons", part=Toolbar.BOTTOM)
+        buttons_group.add_button("all", "all", "All")
+        buttons_group.add_button("groups", "group", "Groups")
+        buttons_group.add_button("contacts", "profile", "Contacts")
+
         self.toolbar = toolbar
 
         list_view = ListView(self)
@@ -31,4 +38,19 @@ class LeftWidget(VLayoutWidget):
 
         self.list_model = ListModel(list_view)
         self.list_view = list_view
+
+        self.setMinimumWidth(300)
+
+    def paintEvent(self, QPaintEvent):
+        painter = QPainter(self)
+        painter.setPen(Qt.NoPen)
+
+        start_color = QColor('#777777')
+        start_color.setAlphaF(0.5)
+
+        painter.setBrush(QBrush(start_color))
+        painter.drawRect(QRect(QPoint(self.width()-1, 60), QPoint(self.width()-1, self.height())))
+
+        painter.setBrush(QBrush(QColor('#ffc107')))
+        painter.drawRect(QRect(QPoint(self.width()-1, 0), QPoint(self.width()-1, 59)))
 

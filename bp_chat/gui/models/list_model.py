@@ -21,6 +21,9 @@ class ListView(QListView):
 
         self.setFrameShape(QFrame.NoFrame)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.setMouseTracking(True)
+
+        self._custom_selection = CustomSelection()
 
     def set_selected_callback(self, callback):
         self._selected_callback = callback
@@ -34,6 +37,59 @@ class ListView(QListView):
         ret = super().resizeEvent(e)
         self.model().reset_model()
         return ret
+
+    def mousePressEvent(self, e):
+        delegate = self.itemDelegate()
+
+        if e.button() == Qt.LeftButton:
+            self._custom_selection.active = True
+            self._custom_selection.start = (e.pos().x(), e.pos().y())
+            self._custom_selection.end = None
+
+            delegate.on_custom_selection_changed(self._custom_selection)
+
+        # if self.delegate:
+        #     self.delegate.mousePressEvent(e)
+
+        return super().mousePressEvent(e)
+
+    def mouseMoveEvent(self, e):
+
+        delegate = self.itemDelegate()
+
+        if self._custom_selection.active:
+            self._custom_selection.end = (e.pos().x(), e.pos().y())
+
+            delegate.on_custom_selection_changed(self._custom_selection)
+
+        # if self.delegate:
+        #     self.delegate.mouseMoveEvent(event, not self._current_enable)
+        #
+        # if self._current_enable:
+        #     self._current_mouse_pos = event.pos()
+        #     self._current_mouse_pos_scroll_h = self.horizontalScrollBar().value()
+        #
+        #     self.model().updateMe()
+
+        return super().mouseMoveEvent(e)
+
+    def mouseReleaseEvent(self, e):
+
+        self._custom_selection.active = False
+
+        # if self.delegate:
+        #     self.delegate.mouseReleaseEvent(e)
+
+        # if event.button() == Qt.RightButton:
+        #     self._menu_pos = event.pos()
+        #     menu = self.makeMessageMenu()
+        #     menu.exec_(event.globalPos())
+        # else:
+        #     self._current_mouse_pos = event.pos()
+        #     self._current_enable = False
+        #     #self.tryOpenFile(self.indexAt(self._current_mouse_pos))
+
+        return super().mouseReleaseEvent(e)
 
 
 
@@ -252,6 +308,9 @@ class ListDelegate(QItemDelegate):
 
         return super().eventFilter(obj, event)
 
+    def on_custom_selection_changed(self, custom_selection):
+        pass
+
 
 class ListModel(QAbstractListModel):
 
@@ -464,14 +523,53 @@ class MessagesListDelegate(ListDelegate):
         left, top, right, bottom = left_top_right_bottom
         line_height, lines = line_height_and_lines
 
+        custom_selection: CustomSelection = self.listView._custom_selection
+
         top_now = top
         for words in lines:
-            painter.drawText(left, top_now, ' '.join(words))
+
+            line_start = top_now - line_height
+            line_end = top_now
+
+            select_start_in_this_line = select_end_in_this_line = select_start_upper = select_end_lower = False
+            if custom_selection.start and custom_selection.end:
+                select_start_in_this_line = line_start <= custom_selection.start[1] < line_end
+                select_end_in_this_line = line_start <= custom_selection.end[1] < line_end
+                select_start_upper = custom_selection.start[1] < line_start
+                select_end_lower = custom_selection.end[1] > line_end
+
+            w_left = left
+            for w in words:
+
+                a_left = w_left
+                for a in w:
+                    r = painter.boundingRect(QRectF(0, 0, 500, 500), a)
+
+                    a_right = a_left + r.width()
+
+                    if custom_selection.start and custom_selection.end:
+                        if (
+                                (select_start_upper and select_end_lower) or
+                                (select_start_in_this_line and select_end_in_this_line and a_left >= custom_selection.start[0] and a_right <= custom_selection.end[0]) or
+                                (select_start_in_this_line and not select_end_in_this_line and a_left >= custom_selection.start[0]) or
+                                (not select_start_in_this_line and select_end_in_this_line and a_right <= custom_selection.end[0])
+                        ):
+                            painter.fillRect(QRectF(QPointF(a_left, top_now - line_height), QPointF(a_right, top_now)),
+                                             QColor("#cccccc"))
+
+                    a_left += r.width()
+
+                painter.drawText(w_left, top_now, w)
+                w_left = a_left + 5
+
             top_now += line_height
 
     def sizeHint(self, option, index):
         ret = super().sizeHint(option, index)
         return ret
+
+    def on_custom_selection_changed(self, custom_selection):
+        self.list_model.reset_model()
 
 
 class MessagesListModel(ListModel):
@@ -520,3 +618,11 @@ class ListModelItem:
         return None
 
 
+class CustomSelection:
+
+    active = False
+    start = None
+    end = None
+
+    def __str__(self):
+        return "{} {} - {}".format("A" if self.active else "D", self.start, self.end)

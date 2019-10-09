@@ -34,11 +34,8 @@ class RightWidget(VLayoutWidget):
         self.toolbar = toolbar
 
         list_view = ListView(self)
-        list_view.setSelectionMode(QAbstractItemView.MultiSelection)
+        list_view.setSelectionMode(QAbstractItemView.NoSelection) # QAbstractItemView.MultiSelection
         self.addWidget(list_view)
-
-        # update_button = QPushButton("Update")
-        # self.addWidget(update_button)
 
         self.list_model = MessagesListModel(list_view)
         self.list_view = list_view

@@ -23,7 +23,11 @@ class RightWidget(VLayoutWidget):
         toolbar.add_button("group", Toolbar.LEFT, "group").clicked.connect(
             lambda *args: app.exit(0))
         toolbar.add_label("title", Toolbar.CENTER, 'Title')
-        toolbar.add_button("menu", Toolbar.RIGHT, "menu").clicked.connect(_show)
+        #toolbar.add_button("menu", Toolbar.RIGHT, "menu").clicked.connect(_show)
+
+        buttons_group = toolbar.add_buttons_group("right_buttons", to=Toolbar.RIGHT)
+        buttons_group.add_button("menu", "menu")
+        buttons_group.add_button("cancel", "cancel")
 
         info_label = InfoLabel(self)
         info_label.setText("Some info...")

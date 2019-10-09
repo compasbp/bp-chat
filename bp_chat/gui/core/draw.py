@@ -1,6 +1,8 @@
+from os.path import abspath
+
 from PyQt5.QtGui import (QColor, QFont, QPainter, QLinearGradient, QBrush, QRadialGradient,
-                         QBitmap)
-from PyQt5.QtCore import QPointF, Qt, QPoint, QRect
+                         QBitmap, QIcon)
+from PyQt5.QtCore import QPointF, Qt, QPoint, QRect, QSize
 
 
 def set_widget_background(widget, color):
@@ -172,3 +174,19 @@ def color_from_hex(hex_color):
     if type(hex_color) == str:
         hex_color = QColor(hex_color)
     return hex_color
+
+
+def pixmap_from_file(icon_name, to_width, to_height):
+    icon = icon_from_file(icon_name)
+    return icon.pixmap(QSize(to_width, to_height))
+
+def pixmap_from_icon(icon, to_width, to_height):
+    return icon.pixmap(QSize(to_width, to_height))
+
+def icon_from_file(icon_name):
+    return QIcon(path_to_images() + "/" +
+                 icon_name + ".png")
+
+def path_to_images():
+    #return ':/images/data/images/'
+    return abspath('data/images/')

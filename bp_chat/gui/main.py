@@ -43,7 +43,9 @@ def main():
 
     def on_chat_selected(selected_chats):
         if selected_chats:
-            right_widget.list_model.items_dict = server_data.chats[selected_chats[0].chat.id].messages
+            chat = selected_chats[0].chat
+            right_widget.toolbar.set_text('title', chat.title)
+            right_widget.list_model.items_dict = server_data.chats[chat.id].messages
             right_widget.list_model.reset_model()
 
     left_widget.list_view.set_selected_callback(on_chat_selected)

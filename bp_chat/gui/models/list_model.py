@@ -1,5 +1,4 @@
 
-
 from PyQt5.QtWidgets import QItemDelegate, QListView, QFrame, QStyledItemDelegate
 from PyQt5.QtGui import QColor, QPainter, QFont, QFontMetrics
 from PyQt5.QtCore import (QAbstractListModel, QSize, QPointF, QRectF, pyqtSignal, QEvent, Qt, QItemSelection,
@@ -10,6 +9,7 @@ from threading import Timer
 from bp_chat.gui.core.draw import draw_badges, get_round_mask, color_from_hex
 from .funcs import item_from_object
 from .drawers import MessageDrawer
+from ..core.draw import pixmap_from_file
 
 
 class ListView(QListView):
@@ -267,6 +267,8 @@ class ListDelegate(QItemDelegate):
     def drawImage(self, painter, item, left, top):
         _image_left_add = 0
         pixmap = self.list_model.getItemPixmap(item)
+        if type(pixmap) == str:
+            pixmap = pixmap_from_file(pixmap, 50, 50)
         if pixmap:
             painter.drawImage(QPointF(left + 8 + _image_left_add, top + 8), pixmap.toImage())
 
@@ -296,10 +298,10 @@ class ListDelegate(QItemDelegate):
         item_color = self.list_model.getItemColor(item)
         if item_color:
 
-            if type(item_color) == str: # FIXME !!!
-                status_color = color_from_hex(item_color)
+            if type(item_color) == str:
+                item_color = color_from_hex(item_color)
 
-            return status_color
+            return item_color
 
     def eventFilter(self, obj, event):
 
@@ -524,6 +526,10 @@ class MessagesListDelegate(ListDelegate):
         line_height, lines = line_height_and_lines
 
         custom_selection: CustomSelection = self.listView._custom_selection
+        sel_start = custom_selection.start
+        sel_end = custom_selection.end
+        if sel_start and sel_end and sel_start[1] > sel_end[1]:
+            sel_start, sel_end = sel_end, sel_start
 
         top_now = top
         for words in lines:
@@ -532,11 +538,11 @@ class MessagesListDelegate(ListDelegate):
             line_end = top_now
 
             select_start_in_this_line = select_end_in_this_line = select_start_upper = select_end_lower = False
-            if custom_selection.start and custom_selection.end:
-                select_start_in_this_line = line_start <= custom_selection.start[1] < line_end
-                select_end_in_this_line = line_start <= custom_selection.end[1] < line_end
-                select_start_upper = custom_selection.start[1] < line_start
-                select_end_lower = custom_selection.end[1] > line_end
+            if sel_start and sel_end:
+                select_start_in_this_line = line_start <= sel_start[1] <= line_end
+                select_end_in_this_line = line_start <= sel_end[1] <= line_end
+                select_start_upper = sel_start[1] <= line_start
+                select_end_lower = sel_end[1] >= line_end
 
             w_left = left
             for w in words:
@@ -547,12 +553,12 @@ class MessagesListDelegate(ListDelegate):
 
                     a_right = a_left + r.width()
 
-                    if custom_selection.start and custom_selection.end:
+                    if sel_start and sel_end:
                         if (
                                 (select_start_upper and select_end_lower) or
-                                (select_start_in_this_line and select_end_in_this_line and a_left >= custom_selection.start[0] and a_right <= custom_selection.end[0]) or
-                                (select_start_in_this_line and not select_end_in_this_line and a_left >= custom_selection.start[0]) or
-                                (not select_start_in_this_line and select_end_in_this_line and a_right <= custom_selection.end[0])
+                                (select_start_in_this_line and select_end_in_this_line and a_left >= sel_start[0] and a_right <= sel_end[0]) or
+                                (select_start_in_this_line and not select_end_in_this_line and a_left >= sel_start[0]) or
+                                (not select_start_in_this_line and select_end_in_this_line and a_right <= sel_end[0])
                         ):
                             painter.fillRect(QRectF(QPointF(a_left, top_now - line_height), QPointF(a_right, top_now)),
                                              QColor("#cccccc"))

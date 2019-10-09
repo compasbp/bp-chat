@@ -25,8 +25,19 @@ class UserItem(ListModelItem):
 
 class ChatItem(ListModelItem):
 
+    COLORS = (
+        '#bbe7b9', '#7eaae0', '#fbdaa0', '#e7e6bc', '#f4bbb4', '#9cbdf4', '#a1b2b7'
+    )
+    __LAST_COLOR = -1
+
     def __init__(self, chat):
         self.chat = chat
+
+        ChatItem.__LAST_COLOR += 1
+        if ChatItem.__LAST_COLOR > 6:
+            ChatItem.__LAST_COLOR = 0
+
+        self.chat_color = ChatItem.COLORS[ChatItem.__LAST_COLOR]
 
     def getName(self):
         return self.chat.title
@@ -42,10 +53,13 @@ class ChatItem(ListModelItem):
         return '11:00'
 
     def getPixmap(self):
-        return None
+        return 'group'
 
     def getBadgesCount(self):
         return 3
+
+    def getColor(self):
+        return self.chat_color
 
 
 class MessageItem(ListModelItem):

@@ -107,6 +107,9 @@ class Toolbar(QWidget):
         self.set_widget(edit, to, page=page)
         return edit
 
+    def set_text(self, name, text):
+        self.elements[name].setText(text)
+
     def set_widget(self, widget, to, page=None, part=TOP):
         if not page:
             page = 'first'
@@ -165,9 +168,10 @@ class ButtonsGroup(QWidget):
         self.lay = QHBoxLayout(self)
         self.buttons = {}
 
-    def add_button(self, name, iconname, text):
+    def add_button(self, name, iconname, text=None):
         button = ImagedButton.by_filename("data/images/"+iconname+".png")
-        button.setText(text)
+        if text:
+            button.setText(text)
         self.buttons[name] = button
         self.lay.addWidget(button)
         return button

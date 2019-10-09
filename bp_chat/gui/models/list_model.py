@@ -9,6 +9,7 @@ from threading import Timer
 
 from bp_chat.gui.core.draw import draw_badges, get_round_mask, color_from_hex
 from .funcs import item_from_object
+from .drawers import MessageDrawer
 
 
 class ListView(QListView):
@@ -25,6 +26,7 @@ class ListView(QListView):
         self._selected_callback = callback
 
     def selectionChanged(self, selectedSelection, deselectedSelection):
+        self.model().reset_model()
         if self._selected_callback:
             self._selected_callback([ind.data() for ind in selectedSelection.indexes()])
 
@@ -163,7 +165,7 @@ class ListDelegate(QItemDelegate):
 
             left_top_right_bottom = (message_left, message_top, right, bottom)
 
-            _text = self.prepareMessageText(second_text, left_top_right_bottom)
+            _text = self.prepareMessageText(item, second_text, left_top_right_bottom)
 
             self.drawMessageText(painter, _text, left_top_right_bottom)
 
@@ -178,7 +180,7 @@ class ListDelegate(QItemDelegate):
         font.setBold(False)
         return font
 
-    def prepareMessageText(self, second_text, left_top_right_bottom):
+    def prepareMessageText(self, item, second_text, left_top_right_bottom):
         left, top, right, bottom = left_top_right_bottom
 
         font = self.prepareMessageFont()
@@ -411,44 +413,48 @@ class MessagesListDelegate(ListDelegate):
         ret = super().prepare_base_left_top_right_bottom(option)
         return ret
 
-    def prepareMessageText(self, second_text, left_top_right_bottom):
+    def prepareMessageText(self, item, second_text, left_top_right_bottom):
         left, top, right, bottom = left_top_right_bottom
 
-        font = self.prepareMessageFont()
-        metrics = QFontMetrics(font)
+        drawer = getattr(item, 'drawer', None)
+        if not drawer:
+            drawer = MessageDrawer(item, self.prepareMessageFont(), second_text)
 
-        w_rect = metrics.boundingRect(0, 0, 9999, 9999, Qt.Horizontal, 'w')
-        line_height = w_rect.height()
-        space_width = w_rect.width()
+        # font = drawer.font
+        # metrics = QFontMetrics(font)
+
+        #w_rect = metrics.boundingRect(0, 0, 9999, 9999, Qt.Horizontal, 'w')
+        line_height = drawer.line_height #w_rect.height()
+        space_width = drawer.w_width #w_rect.width()
 
         top_now = top - line_height
         left_now = left - space_width
 
-        lines = second_text.split('\n')
+        lines = drawer.lines #second_text.split('\n')
         new_lines = []
 
         for line in lines:
             top_now += line_height
-            words = line.split(' ')
 
             last_i = i = 0
             to_new_lines = []
-            for i, w in enumerate(words):
+            for i, w_drawer in enumerate(line):
                 left_now += space_width
-                r = metrics.boundingRect(left_now, top_now, 9999, 9999, Qt.Horizontal, w)
+                #r = metrics.boundingRect(left_now, top_now, 9999, 9999, Qt.Horizontal, w)
+                r_right = left_now + w_drawer.width
 
-                if r.right() > right:
-                    to_new_lines.append(words[last_i:i])
+                if r_right > right:
+                    to_new_lines.append(line[last_i:i])
                     last_i = i
                     left_now = left
                     top_now += line_height
                 else:
-                    left_now = r.right()
+                    left_now = r_right
 
             if len(to_new_lines) == 0:
-                to_new_lines.append(words)
+                to_new_lines.append(line)
             elif last_i < i:
-                to_new_lines.append(words[last_i:])
+                to_new_lines.append(line[last_i:])
 
             new_lines += to_new_lines
 
@@ -481,7 +487,7 @@ class MessagesListModel(ListModel):
 
         second_text = self.getItemSecondText(item)
         if second_text:
-            line_height, new_lines = self.delegate.prepareMessageText(second_text, left_top_right_bottom)
+            line_height, new_lines = self.delegate.prepareMessageText(item, second_text, left_top_right_bottom)
             h = (len(new_lines)) * line_height
             h_top = message_top - option.rect.top()
             h += h_top

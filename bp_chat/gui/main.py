@@ -22,8 +22,8 @@ def main():
             2: Message(id=2, sender=users[2], chat=None, text="Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.", datetime=datetime.now()),
             3: Message(id=3, sender=users[1], chat=None, text="Hello 3!", datetime=datetime.now()),
         }),
-        2: Chat(1, 'Test chat 2', [], []),
-        3: Chat(1, 'Test chat 3', [], []),
+        2: Chat(2, 'Test chat 2', [], {}),
+        3: Chat(3, 'Test chat 3', [], {}),
     })
 
     w = main_widget(QWidget())
@@ -40,6 +40,13 @@ def main():
     right_widget = RightWidget(app, splitter)
     right_widget.list_model.model_item = MessageItem
     right_widget.list_model.items_dict = server_data.chats[1].messages
+
+    def on_chat_selected(selected_chats):
+        if selected_chats:
+            right_widget.list_model.items_dict = server_data.chats[selected_chats[0].chat.id].messages
+            right_widget.list_model.reset_model()
+
+    left_widget.list_view.set_selected_callback(on_chat_selected)
 
     splitter.add_widget(left_widget, LeftRightSplitter.LEFT)
     splitter.add_widget(right_widget, LeftRightSplitter.RIGHT)

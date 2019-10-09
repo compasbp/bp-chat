@@ -34,6 +34,10 @@ class Chat:
         self.users = users
         self.messages = messages
 
+    @property
+    def id(self):
+        return self._id
+
     def get_last_message(self):
         if len(self.messages) == 0:
             return None

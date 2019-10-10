@@ -21,6 +21,22 @@ class VLayoutWidget(QWidget):
         self.lay.addWidget(widget)
 
 
+class PagedWidget(QStackedWidget):
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        self.pages = {}
+        self.layout().setContentsMargins(0, 0, 0, 0)
+
+    def add_page(self, name, widget):
+        self.pages[name] = self.count()
+        self.addWidget(widget)
+        return widget
+
+    def set_page(self, name):
+        self.setCurrentIndex(self.pages[name])
+
 
 class Toolbar(QWidget):
 

@@ -39,14 +39,12 @@ def main():
     left_widget.list_model.items_dict = server_data.chats
     right_widget = RightWidget(app, splitter)
     right_widget.list_model.model_item = MessageItem
-    right_widget.list_model.items_dict = server_data.chats[1].messages
+    right_widget.list_model.items_dict = {}
 
     def on_chat_selected(selected_chats):
         if selected_chats:
             chat = selected_chats[0].chat
-            right_widget.toolbar.set_text('title', chat.title)
-            right_widget.list_model.items_dict = server_data.chats[chat.id].messages
-            right_widget.list_model.reset_model()
+            right_widget.open_chat(chat)
 
     left_widget.list_view.set_selected_callback(on_chat_selected)
 

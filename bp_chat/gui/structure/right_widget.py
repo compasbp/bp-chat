@@ -20,31 +20,55 @@ class RightWidget(VLayoutWidget):
             # w.a.exec_()
             pass
 
-        toolbar.add_button("group", Toolbar.LEFT, "group").clicked.connect(
-            lambda *args: app.exit(0))
-        toolbar.add_label("title", Toolbar.CENTER, 'Title')
+        toolbar.add_label("clear", Toolbar.CENTER, '')
+        toolbar.add_page("chat")
+        # toolbar.add_button("back", Toolbar.LEFT, "arrow_back", page='search').clicked.connect(
+        #     lambda *args: toolbar.set_page("first"))
+        # toolbar.add_input("input", Toolbar.CENTER, page='search')
+
+        toolbar.add_button("group", Toolbar.LEFT, "group", page='chat')
+        toolbar.add_label("title", Toolbar.CENTER, 'Title', page='chat')
         #toolbar.add_button("menu", Toolbar.RIGHT, "menu").clicked.connect(_show)
 
-        buttons_group = toolbar.add_buttons_group("right_buttons", to=Toolbar.RIGHT)
+        buttons_group = toolbar.add_buttons_group("right_buttons", to=Toolbar.RIGHT, page='chat')
         buttons_group.add_button("menu", "menu")
-        buttons_group.add_button("cancel", "cancel")
+        buttons_group.add_button("cancel", "cancel").clicked.connect(self.close_chat)
 
-        info_label = InfoLabel(self)
-        info_label.setText("Some info...")
-        self.addWidget(info_label)
+        # info_label = InfoLabel(self)
+        # info_label.setText("Some info...")
+        # self.addWidget(info_label)
 
         #self.lay.addSpacerItem(QSpacerItem(10, 10, QSizePolicy.Expanding, QSizePolicy.Expanding))
 
         self.toolbar = toolbar
 
-        list_view = ListView(self)
+        paged_widget = self.paged_widget = PagedWidget(self)
+        self.addWidget(paged_widget)
+
+        paged_widget.add_page('clear', VLayoutWidget())
+        chat_page: VLayoutWidget = paged_widget.add_page('chat', VLayoutWidget())
+
+        list_view = ListView()
         list_view.setSelectionMode(QAbstractItemView.NoSelection) # QAbstractItemView.MultiSelection
-        self.addWidget(list_view)
+        chat_page.addWidget(list_view)
 
         self.list_model = MessagesListModel(list_view)
         self.list_view = list_view
 
         self.message_input = MessageInputWidget()
-        self.addWidget(self.message_input)
+        chat_page.addWidget(self.message_input)
 
         self.setMinimumWidth(500)
+
+    def open_chat(self, chat):
+        self.toolbar.set_page('chat')
+        self.toolbar.set_text('title', chat.title)
+        self.list_model.items_dict = chat.messages
+        self.list_model.reset_model()
+        self.paged_widget.set_page('chat')
+
+    def close_chat(self):
+        self.toolbar.set_page('first')
+        self.list_model.items_dict = {}
+        self.list_model.reset_model()
+        self.paged_widget.set_page('clear')

@@ -15,6 +15,7 @@ from ..core.draw import pixmap_from_file
 class ListView(QListView):
 
     _selected_callback = None
+    _current_selection = None
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -29,9 +30,13 @@ class ListView(QListView):
         self._selected_callback = callback
 
     def selectionChanged(self, selectedSelection, deselectedSelection):
-        self.model().reset_model()
+        _new_selection = [ind.data() for ind in selectedSelection.indexes()]
+        if self._current_selection == _new_selection:
+            return
+        self._current_selection = _new_selection
         if self._selected_callback:
-            self._selected_callback([ind.data() for ind in selectedSelection.indexes()])
+            self._selected_callback(_new_selection)
+        self.model().reset_model()
 
     def resizeEvent(self, e):
         ret = super().resizeEvent(e)

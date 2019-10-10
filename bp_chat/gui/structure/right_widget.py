@@ -6,8 +6,10 @@ from PyQt5.QtWidgets import QAbstractItemView
 
 class RightWidget(VLayoutWidget):
 
-    def __init__(self, app, splitter):
+    def __init__(self, app, splitter, left_widget):
         super().__init__(splitter)
+
+        self.left_widget = left_widget
 
         toolbar = Toolbar(self)
         self.addWidget(toolbar)
@@ -31,7 +33,8 @@ class RightWidget(VLayoutWidget):
         #toolbar.add_button("menu", Toolbar.RIGHT, "menu").clicked.connect(_show)
 
         buttons_group = toolbar.add_buttons_group("right_buttons", to=Toolbar.RIGHT, page='chat')
-        buttons_group.add_button("menu", "menu")
+        self.menu_button = buttons_group.add_button("menu", "menu")
+        self.menu_button.clicked.connect(self.open_chat_menu)
         buttons_group.add_button("cancel", "cancel").clicked.connect(self.close_chat)
 
         # info_label = InfoLabel(self)
@@ -72,3 +75,7 @@ class RightWidget(VLayoutWidget):
         self.list_model.items_dict = {}
         self.list_model.reset_model()
         self.paged_widget.set_page('clear')
+
+    def open_chat_menu(self):
+        global_pos = self.menu_button.mapToGlobal(self.menu_button.pos())
+        self.left_widget.list_view.open_menu_for_selected_item(QPoint(global_pos.x(), global_pos.y()+self.menu_button.height()))

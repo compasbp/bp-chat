@@ -23,20 +23,29 @@ class User:
 
 class Chat:
 
+    PRIVATE = 0
+    GROUP = 1
+
     _id: int
+    _type: int
     title: str
     users: ['User']
     messages: {int: 'Message'}
 
-    def __init__(self, id, title, users, messages):
+    def __init__(self, id, title, users, messages, chat_type=GROUP):
         self._id = id
         self.title = title
         self.users = users
         self.messages = messages
+        self._type = chat_type
 
     @property
     def id(self):
         return self._id
+
+    @property
+    def type(self):
+        return self._type
 
     def get_last_message(self):
         if len(self.messages) == 0:

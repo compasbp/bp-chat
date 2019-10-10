@@ -37,7 +37,7 @@ def main():
     left_widget = LeftWidget(splitter)
     left_widget.list_model.model_item = ChatItem
     left_widget.list_model.items_dict = server_data.chats
-    right_widget = RightWidget(app, splitter)
+    right_widget = RightWidget(app, splitter, left_widget)
     right_widget.list_model.model_item = MessageItem
     right_widget.list_model.items_dict = {}
 

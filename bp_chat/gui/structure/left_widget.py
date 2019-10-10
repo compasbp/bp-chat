@@ -1,6 +1,6 @@
 from ..core.animate import *
 from ..core.widgets import *
-from ..models.list_model import ListView, ListModel, ListModelItem
+from ..models.list_model import ListView, ChatsModel
 
 
 class LeftWidget(VLayoutWidget):
@@ -36,7 +36,7 @@ class LeftWidget(VLayoutWidget):
         update_button = QPushButton("Update")
         self.addWidget(update_button)
 
-        self.list_model = ListModel(list_view)
+        self.list_model = ChatsModel(list_view)
         self.list_view = list_view
 
         self.setMinimumWidth(300)

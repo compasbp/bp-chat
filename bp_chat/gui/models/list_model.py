@@ -1,5 +1,5 @@
 
-from PyQt5.QtWidgets import QItemDelegate, QListView, QFrame, QStyledItemDelegate
+from PyQt5.QtWidgets import QItemDelegate, QListView, QFrame, QStyledItemDelegate, QMenu
 from PyQt5.QtGui import QColor, QPainter, QFont, QFontMetrics
 from PyQt5.QtCore import (QAbstractListModel, QSize, QPointF, QRectF, pyqtSignal, QEvent, Qt, QItemSelection,
                           QItemSelectionModel)
@@ -9,7 +9,7 @@ from threading import Timer
 from bp_chat.gui.core.draw import draw_badges, get_round_mask, color_from_hex
 from .funcs import item_from_object
 from .drawers import MessageDrawer
-from ..core.draw import pixmap_from_file
+from ..core.draw import pixmap_from_file, icon_from_file
 
 
 class ListView(QListView):
@@ -85,16 +85,23 @@ class ListView(QListView):
         # if self.delegate:
         #     self.delegate.mouseReleaseEvent(e)
 
-        # if event.button() == Qt.RightButton:
-        #     self._menu_pos = event.pos()
-        #     menu = self.makeMessageMenu()
-        #     menu.exec_(event.globalPos())
+        if e.button() == Qt.RightButton:
+            #self._menu_pos = e.pos()
+            self.open_menu_for_selected_item(e.globalPos())
+
+
         # else:
         #     self._current_mouse_pos = event.pos()
         #     self._current_enable = False
         #     #self.tryOpenFile(self.indexAt(self._current_mouse_pos))
 
         return super().mouseReleaseEvent(e)
+
+    def open_menu_for_selected_item(self, global_pos):
+        chat = self._current_selection[0] if self._current_selection else None
+        menu = self.model().make_menu(chat) if chat else None
+        if menu:
+            menu.exec_(global_pos)
 
 
 
@@ -450,6 +457,9 @@ class ListModel(QAbstractListModel):
     def customDraw(self, painter, item, left_top_right_bottom, main_draw_results):
         pass
 
+    def make_menu(self, item):
+        pass
+
     def reset_model(self):
         if self._need_reset_timer:
             return
@@ -471,6 +481,76 @@ class ListModel(QAbstractListModel):
             item_selection.select(i, i)
 
         self.delegate.listView.selectionModel().select(item_selection, QItemSelectionModel.Select)
+
+
+class ChatsModel(ListModel):
+
+    def make_menu(self, chat_item):
+        chat = chat_item.chat
+
+        menu = QMenu(self.delegate.listView)
+        createGroupAction = menu.addAction(icon_from_file("create_group"), "Create group")
+        createGroupAction.triggered.connect(self.on_create_group_action)
+        is_admin = False #ChatApi.instance().is_admin
+
+        if chat.type == chat.PRIVATE:
+            profileAction = menu.addAction(icon_from_file("profile"), "Edit user" if is_admin else "Show profile")
+            profileAction.triggered.connect(lambda: self.onProfileAction(chat.user.id))
+        elif chat.type == chat.GROUP:
+            profileAction = menu.addAction(icon_from_file("edit"), "Edit group")
+            profileAction.triggered.connect(lambda: self.onChatEdit(chat))
+
+            deleteAction = menu.addAction(icon_from_file("delete"), "Remove group")
+            deleteAction.triggered.connect(lambda: self.onRemoveEdit(chat))
+        # elif chat.is_live():
+        #     if chat.is_mine():
+        #         finAction = menu.addAction(icon_from_file("finish_dialog"), "Finish live chat")
+        #         finAction.triggered.connect(lambda: self.onFinishLiveChat(chat))
+        #     else:
+        #         takeAction = menu.addAction(icon_from_file("take"), "Take live chat")
+        #         takeAction.triggered.connect(lambda: self.onTakeLiveChat(chat))
+        #     if is_admin:
+        #         profileAction = menu.addAction(icon_from_file("profile"), "Edit guest")
+        #         profileAction.triggered.connect(lambda: self.onProfileAction(user_id=None, live_chat_id=chat.chat_id))
+
+        updateAction = menu.addAction(icon_from_file("refresh"), "Refresh chats")
+        updateAction.triggered.connect(self.on_refresh_action)
+
+        #chat_api = ChatApi.instance()
+        chat_muted = False #chat_api.is_chat_muted(chat.chat_id)
+        chat_pinned = False #chat_api.is_chat_pinned(chat.chat_id)
+
+        mute_name = 'unmute' if chat_muted else 'mute'
+        muteAction = menu.addAction(icon_from_file(mute_name), mute_name[:1].upper() + mute_name[1:])
+        muteAction.triggered.connect(lambda: self.onMuteAction(mute_name, chat.id))
+
+        filtered_by_last_readed = [False]
+
+        def is_filtered_by_last_readed(boo):
+            filtered_by_last_readed[0] = boo
+
+        badges_count = 0 #chat.get_badges_count(is_filtered_by_last_readed=is_filtered_by_last_readed)
+        if badges_count > 0:
+            markAllReadAction = menu.addAction(icon_from_file("all_read"), "Mark all read")
+            markAllReadAction.triggered.connect(lambda: self.onMarkAllReadAction(chat))
+        elif filtered_by_last_readed[0]:
+            unmarkAllReadAction = menu.addAction(icon_from_file("remove_all_read"), "Unmark all read")
+            unmarkAllReadAction.triggered.connect(lambda: self.onMarkAllReadAction(chat, unmark=True))
+
+        if chat_pinned:
+            delFromPinned_Action = menu.addAction(icon_from_file("pinned"), "Remove from pinned")
+            delFromPinned_Action.triggered.connect(lambda: self.onDelFromPinned_Action(chat))
+        else:
+            addToPinned_Action = menu.addAction(icon_from_file("pin"), "Add to pinned")
+            addToPinned_Action.triggered.connect(lambda: self.onAddToPinned_Action(chat))
+
+        return menu
+
+    def on_refresh_action(self):
+        pass
+
+    def on_create_group_action(self):
+        pass
 
 
 class MessagesListDelegate(ListDelegate):
@@ -581,6 +661,9 @@ class MessagesListDelegate(ListDelegate):
 
     def on_custom_selection_changed(self, custom_selection):
         self.list_model.reset_model()
+
+    def make_menu(self):
+        pass
 
 
 class MessagesListModel(ListModel):

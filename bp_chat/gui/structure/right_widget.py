@@ -69,12 +69,14 @@ class RightWidget(VLayoutWidget):
         self.list_model.items_dict = chat.messages
         self.list_model.reset_model()
         self.paged_widget.set_page('chat')
+        self.toolbar.down_shadow.raise_()
 
     def close_chat(self):
         self.toolbar.set_page('first')
         self.list_model.items_dict = {}
         self.list_model.reset_model()
         self.paged_widget.set_page('clear')
+        self.left_widget.list_view.clear_selection()
 
     def open_chat_menu(self):
         global_pos = self.menu_button.mapToGlobal(self.menu_button.pos())

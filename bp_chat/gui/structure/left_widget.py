@@ -7,7 +7,7 @@ class LeftWidget(VLayoutWidget):
 
     MARGINS = (0, 0, 1, 0)
 
-    def __init__(self, splitter):
+    def __init__(self, splitter, main_widget):
         super().__init__(splitter)
 
         toolbar = Toolbar(self)
@@ -41,6 +41,11 @@ class LeftWidget(VLayoutWidget):
 
         self.setMinimumWidth(300)
 
+        self.toolbar.down_shadow.raise_()
+
+        self.right_shadow = SideShadow(main_widget, side=SideShadow.RIGHT, h=10)
+        self.right_shadow.install(self)
+
     def paintEvent(self, QPaintEvent):
         painter = QPainter(self)
         painter.setPen(Qt.NoPen)
@@ -51,6 +56,12 @@ class LeftWidget(VLayoutWidget):
         painter.setBrush(QBrush(start_color))
         painter.drawRect(QRect(QPoint(self.width()-1, 60), QPoint(self.width()-1, self.height())))
 
-        painter.setBrush(QBrush(QColor('#ffc107')))
+        painter.setBrush(QBrush(QColor('#999999'))) # #ffc107
         painter.drawRect(QRect(QPoint(self.width()-1, 0), QPoint(self.width()-1, 59)))
+
+    # def showEvent(self, e):
+    #     ret = super().showEvent(e)
+    #     self.right_shadow.show()
+    #     self.right_shadow.raise_()
+    #     return ret
 

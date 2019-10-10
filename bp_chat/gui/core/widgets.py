@@ -3,7 +3,8 @@ from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QTo
 from PyQt5.QtGui import QPainter, QBrush, QColor, QIcon
 from PyQt5.QtCore import Qt, QRect, QPoint, QEvent, QSize
 
-from .draw import set_widget_background, draw_shadow_down, draw_shadow_round, draw_rounded_form
+from .draw import (set_widget_background, draw_shadow_round, draw_rounded_form,
+                   draw_shadow, draw_shadow_down, SHADOW_DOWN, SHADOW_RIGHT)
 
 
 class VLayoutWidget(QWidget):
@@ -75,8 +76,8 @@ class Toolbar(QWidget):
 
         self.add_page('first')
 
-        self.down_shadow = DownShadow(parent)
-        self.installEventFilter(self.down_shadow)
+        self.down_shadow = SideShadow(parent, side=SideShadow.DOWN)
+        self.down_shadow.install(self)
 
     def update_height(self):
         h = self.LINE_HEIGHT
@@ -193,20 +194,48 @@ class ButtonsGroup(QWidget):
         return button
 
 
-class DownShadow(QWidget):
+class SideShadow(QWidget):
 
-    h = 20
+    DOWN = SHADOW_DOWN
+    RIGHT = SHADOW_RIGHT
+
+    _side = DOWN
+
+    def __init__(self, parent, side=DOWN, h=10):
+        super().__init__(parent)
+
+        self.h = h
+        self._side = side
+
+    def install(self, parent):
+        parent.installEventFilter(self)
 
     def eventFilter(self, obj, e):
         if e.type() == QEvent.Resize:
-            self.resize(obj.width(), self.h)
-            self.move(obj.x(), obj.y()+obj.height())
+            #print(1, self._side)
+
+            if self._side == SideShadow.DOWN:
+                size = (obj.width(), self.h)
+                self.move(obj.x(), obj.y()+obj.height())
+            else:
+                size = (self.h, obj.height())
+                self.move(obj.x() + obj.width(), obj.y())
+
+            self.resize(*size)
+            #self.setMinimumSize(QSize(*size))
+
         return super().eventFilter(obj, e)
 
     def paintEvent(self, event):
+        #print(2)
         painter = QPainter(self)
         sz = self.size()
-        draw_shadow_down(painter, (0, 0), (sz.width(), sz.height()))
+
+        draw_shadow(painter, (0, 0), (sz.width(), sz.height()), side=self._side)
+
+        start_p = QPoint(0, 0)
+        end_p = QPoint(sz.width(), sz.height())
+        #print(f'REDRAW ({start_p.x()},{start_p.y()}) ({end_p.x()},{end_p.y()})')
 
 
 class ImagedButton(QToolButton):

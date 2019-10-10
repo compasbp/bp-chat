@@ -97,6 +97,10 @@ class ListView(QListView):
 
         return super().mouseReleaseEvent(e)
 
+    def clear_selection(self):
+        self._current_selection = None
+        self.clearSelection()
+
     def open_menu_for_selected_item(self, global_pos):
         chat = self._current_selection[0] if self._current_selection else None
         menu = self.model().make_menu(chat) if chat else None

@@ -2,7 +2,9 @@ from os.path import abspath
 
 from PyQt5.QtGui import (QColor, QFont, QPainter, QLinearGradient, QBrush, QRadialGradient,
                          QBitmap, QIcon, QPixmap)
-from PyQt5.QtCore import QPointF, Qt, QPoint, QRect, QRectF, QSize, QAbstractAnimation, pyqtSignal
+from PyQt5.QtCore import (QPointF, Qt, QPoint, QRect, QRectF, QSize, QAbstractAnimation,
+                          pyqtSignal, QEvent)
+from PyQt5.QtWidgets import QWidget
 
 
 def set_widget_background(widget, color):
@@ -278,3 +280,75 @@ class IconRoundAnimation(QAbstractAnimation):
     def updateCurrentTime(self, currentTime):
         self.alpha = currentTime / float(self.DURATION) / 2.0
         self.need_update.emit()
+
+
+class LoadAnimation(QAbstractAnimation):
+
+    need_update = pyqtSignal()
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        self.poses = [0, 0, 0]
+        self.side = 1
+        self.widget = None
+
+    def start(self, *args):
+        self.widget = LoadAnimationWidget(self, self.parent())
+        self.need_update.connect(self.widget.update_pos)
+        self.widget.show()
+        super().start()
+
+    def stop(self):
+        super().stop()
+        if self.widget:
+            self.widget.deleteLater()
+
+    def duration(self):
+        return -1
+
+    def updateCurrentTime(self, currentTime):
+        if currentTime > 1000:
+            self.side = -self.side
+            currentTime = 0
+            self.setCurrentTime(0)
+
+        if self.side < 0:
+            currentTime = 1000 - currentTime
+        #a, b, c = self.poses
+        a = currentTime / 100.0
+        b = currentTime / 100.0 - currentTime / 200.0
+        c = currentTime / 100.0 + currentTime / 200.0
+        self.poses[:] = [a*3, b, c]
+        #print(self.poses)
+
+        self.need_update.emit()
+
+
+class LoadAnimationWidget(QWidget):
+
+    def __init__(self, animation: LoadAnimation, parent:QWidget=None):
+        super().__init__(parent)
+
+        self.animation = animation
+        parent.installEventFilter(self)
+
+        self.resize(10, 10)
+
+    def eventFilter(self, obj, e:QEvent):
+        if e.type() == QEvent.Resize:
+            self.update_pos()
+        return super().eventFilter(obj, e)
+
+    def update_pos(self):
+        y = self.parent().height()/2 + self.animation.poses[0]
+        self.move(self.parent().width()/2, y)
+
+    def paintEvent(self, e):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        c = QColor('#ffffff')
+        c.setAlpha(0)
+        painter.setPen((c))
+        painter.setBrush(QColor('#ff0000'))
+        painter.drawEllipse(QRectF(0, 0, self.width(), self.height()))

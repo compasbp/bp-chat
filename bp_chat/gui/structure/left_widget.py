@@ -1,5 +1,6 @@
 from ..core.animate import *
 from ..core.widgets import *
+from ..core.draw import LoadAnimation
 from ..models.list_model import ListView, ChatsModel
 
 
@@ -13,7 +14,16 @@ class LeftWidget(VLayoutWidget):
         toolbar = Toolbar(self)
         self.addWidget(toolbar)
 
-        toolbar.add_button("settings", Toolbar.LEFT, "settings")
+        set_widget_background(self, '#ffffff')
+
+        self.load_animation = LoadAnimation(self)
+
+        def _loading(*args):
+            self.paged_widget.set_page('clear')
+            self.load_animation.stop()
+            self.load_animation.start()
+
+        toolbar.add_button("settings", Toolbar.LEFT, "settings").clicked.connect(_loading)
         toolbar.add_label("title", Toolbar.CENTER, "BP Chat")
         toolbar.add_button("search", Toolbar.RIGHT, "search").clicked.connect(
             lambda *args: toolbar.set_page("search"))
@@ -30,8 +40,15 @@ class LeftWidget(VLayoutWidget):
 
         self.toolbar = toolbar
 
+        paged_widget = self.paged_widget = PagedWidget(self)
+        self.addWidget(paged_widget)
+
+        paged_widget.add_page('clear', VLayoutWidget())
+        chats_page: VLayoutWidget = paged_widget.add_page('chats', VLayoutWidget())
+        paged_widget.set_page('chats')
+
         list_view = ListView(self)
-        self.addWidget(list_view)
+        chats_page.addWidget(list_view)
 
         update_button = QPushButton("Update")
         self.addWidget(update_button)

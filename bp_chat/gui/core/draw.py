@@ -87,6 +87,7 @@ def draw_shadow_right(painter: QPainter, pos, size):
 
 SHADOW_DOWN = 0
 SHADOW_RIGHT = 1
+SHADOW_UP = 2
 
 def draw_shadow(painter: QPainter, pos, size, side=SHADOW_DOWN):
     left, top = pos
@@ -99,27 +100,25 @@ def draw_shadow(painter: QPainter, pos, size, side=SHADOW_DOWN):
 
     end_color = QColor('#777777')
     end_color.setAlphaF(0.0)
-    #end_color = self.parentWidget().palette().color(self.parentWidget().backgroundRole())
 
     start_p = QPoint(left, top)
     end_p = QPoint(left + width, top + height)
 
     if side == SHADOW_DOWN:
-        g_width = 0 #end_p0 = QPoint(left, top + height)
+        g_width = 0
+    elif side == SHADOW_UP:
+        g_width = 0
+        start_color, end_color = end_color, start_color
     else:
-        g_height = 0 #end_p0 = QPoint(left + width, top)
+        g_height = 0
 
     gradient = QLinearGradient(left, top, g_width, g_height)
     gradient.setColorAt(0.0, start_color)
     gradient.setColorAt(1.0, end_color)
-    # gradient.setStart(start_p)
-    # gradient.setFinalStop(end_p0)
     brush = QBrush(gradient)
 
-    #brush = QBrush(start_color)
     painter.setBrush(brush)
     painter.drawRect(QRect(start_p, end_p))
-    #print(f'DRAW ({start_p.x()},{start_p.y()}) ({end_p.x()},{end_p.y()})')
 
 def draw_shadow_round(painter: QPainter, center, radius, part=None):
     x, y = center

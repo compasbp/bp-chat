@@ -4,7 +4,7 @@ from PyQt5.QtGui import QPainter, QBrush, QColor, QIcon
 from PyQt5.QtCore import Qt, QRect, QRectF, QPoint, QEvent, QSize, QAbstractAnimation, pyqtSignal
 
 from .draw import (set_widget_background, draw_shadow_round, draw_rounded_form,
-                   draw_shadow, draw_shadow_down, SHADOW_DOWN, SHADOW_RIGHT, IconDrawer)
+                   draw_shadow, draw_shadow_down, SHADOW_DOWN, SHADOW_RIGHT, SHADOW_UP, IconDrawer)
 
 
 class VLayoutWidget(QWidget):
@@ -199,6 +199,7 @@ class SideShadow(QWidget):
 
     DOWN = SHADOW_DOWN
     RIGHT = SHADOW_RIGHT
+    UP = SHADOW_UP
 
     _side = DOWN
 
@@ -218,6 +219,9 @@ class SideShadow(QWidget):
             if self._side == SideShadow.DOWN:
                 size = (obj.width(), self.h)
                 self.move(obj.x(), obj.y()+obj.height())
+            elif self._side == SideShadow.UP:
+                size = (obj.width(), self.h)
+                self.move(obj.x(), obj.y() - size[1])
             else:
                 size = (self.h, obj.height())
                 self.move(obj.x() + obj.width(), obj.y())

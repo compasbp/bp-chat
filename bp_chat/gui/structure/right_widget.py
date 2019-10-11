@@ -63,6 +63,9 @@ class RightWidget(VLayoutWidget):
 
         self.setMinimumWidth(500)
 
+        self.message_input_shadow = SideShadow(chat_page, side=SideShadow.UP, h=10)
+        self.message_input_shadow.install(self.message_input)
+
     def open_chat(self, chat):
         self.toolbar.set_page('chat')
         self.toolbar.set_text('title', chat.title)

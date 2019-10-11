@@ -1,6 +1,6 @@
 
 from PyQt5.QtWidgets import QItemDelegate, QListView, QFrame, QStyledItemDelegate, QMenu
-from PyQt5.QtGui import QColor, QPainter, QFont, QFontMetrics
+from PyQt5.QtGui import QColor, QPainter, QFont, QFontMetrics, QPixmap, QCursor
 from PyQt5.QtCore import (QAbstractListModel, QSize, QPointF, QRectF, pyqtSignal, QEvent, Qt, QItemSelection,
                           QItemSelectionModel)
 
@@ -9,7 +9,7 @@ from threading import Timer
 from bp_chat.gui.core.draw import draw_badges, get_round_mask, color_from_hex
 from .funcs import item_from_object
 from .drawers import MessageDrawer
-from ..core.draw import pixmap_from_file, icon_from_file
+from ..core.draw import pixmap_from_file, icon_from_file, IconDrawer
 
 
 class ListView(QListView):
@@ -122,6 +122,8 @@ class ListDelegate(QItemDelegate):
 
         listView.setItemDelegate(self)
         listView.installEventFilter(self)
+
+        self.icon_drawer = IconDrawer(listView)
 
     def get_round_mask(self, size=(50, 50), to_size=(50, 50)):
         _w, _h = size
@@ -283,10 +285,29 @@ class ListDelegate(QItemDelegate):
     def drawImage(self, painter, item, left, top):
         _image_left_add = 0
         pixmap = self.list_model.getItemPixmap(item)
+        is_simple_icon = False
         if type(pixmap) == str:
             pixmap = pixmap_from_file(pixmap, 50, 50)
+            is_simple_icon = True
         if pixmap:
-            painter.drawImage(QPointF(left + 8 + _image_left_add, top + 8), pixmap.toImage())
+            pixmap: QPixmap
+            if is_simple_icon:
+                pixmap = pixmap.scaledToWidth(32, Qt.SmoothTransformation)
+            sz = pixmap.size()
+            actual_size = (sz.width(), sz.height())
+            #painter.drawImage(QPointF(left + 8 + _image_left_add, top + 8), pixmap.toImage())
+            self.icon_drawer.draw_pixmap(painter, pixmap, (left + 8, top + 8), size=(50, 50), under_mouse=self._is_mouse_on_image(left, top),
+                    icon_size=(50, 50), actual_size=actual_size, alpha=1.0)
+
+    def _is_mouse_on_image(self, left, top):
+        globalCursorPos = QCursor.pos()
+        pos = self.listView.mapFromGlobal(globalCursorPos)
+        #print((pos.x(), pos.y()), (left, top))
+        if pos.y() < top + 8 or pos.y() > top + 58:
+            return False
+        if left + 8 <= pos.x() <= left + 58:
+            return True
+        return False
 
     def drawStatus(self, painter, item, left, top):
         pen = painter.pen()

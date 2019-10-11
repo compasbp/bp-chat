@@ -1,7 +1,7 @@
 from os.path import abspath
 
 from PyQt5.QtGui import (QColor, QFont, QPainter, QLinearGradient, QBrush, QRadialGradient,
-                         QBitmap, QIcon)
+                         QBitmap, QIcon, QPixmap)
 from PyQt5.QtCore import QPointF, Qt, QPoint, QRect, QRectF, QSize, QAbstractAnimation, pyqtSignal
 
 
@@ -216,30 +216,47 @@ class IconDrawer:
         self.parent = parent
         self.animation = None
 
-    def draw_icon(self, painter: QPainter, size, under_mouse):
+    def draw_icon(self, painter: QPainter, size: tuple, under_mouse: bool, icon: QIcon=None, icon_size: tuple=None):
         painter.setRenderHint(QPainter.Antialiasing)
 
-        icon_size: QSize = self.parent.iconSize()
-        icon: QIcon = self.parent.icon()
-        actual_size: QSize = icon.actualSize(icon_size)
+        if not icon_size:
+            icon_size = (self.parent.iconSize().width(), self.parent.iconSize().height())
+        _icon_size = QSize(*icon_size)
+        if not icon:
+            icon: QIcon = self.parent.icon()
 
-        dx, dy = size[0] - icon_size.width(), size[1] - icon_size.height()
-        dw, dh = icon_size.width() - actual_size.width(), icon_size.height() - actual_size.height()
+        _actual_size: QSize = icon.actualSize(_icon_size)
+        actual_size = (_actual_size.width(), _actual_size.height())
+
+        pixmap = icon.pixmap(_icon_size)
+
+        alpha = 0
+        if self.animation:
+            alpha = self.animation.alpha
+
+        self.draw_pixmap(painter, pixmap, (0, 0), size, under_mouse, icon_size, actual_size, alpha)
+
+    @staticmethod
+    def draw_pixmap(painter: QPainter, pixmap: QPixmap, pos: tuple, size: tuple, under_mouse: bool,
+                    icon_size: tuple, actual_size: tuple, alpha: float):
+
+        dx, dy = size[0] - icon_size[0], size[1] - icon_size[1]
+        dw, dh = icon_size[0] - actual_size[0], icon_size[1] - actual_size[1]
 
         if under_mouse:
             c = QColor('#ffffff00')
             c.setAlpha(0)
             painter.setPen(c)
-            c2 = QColor('#ac7f06')
-            alpha = 0
-            if self.animation:
-                alpha = self.animation.alpha
-            c2.setAlphaF(alpha)
+            c2 = QColor('#000000')
+            c2.setAlphaF(alpha*0.3)
             painter.setBrush(c2)
             painter.drawEllipse(QRectF(0, 0, size[0], size[1]))
 
-        pixmap = icon.pixmap(icon_size)
-        painter.drawPixmap(dx / 2 + dw / 2, dy / 2 + dh / 2, pixmap)
+        painter.drawPixmap(pos[0] + dx / 2 + dw / 2, pos[1] + dy / 2 + dh / 2, pixmap)
+
+        # painter.setBrush(c)
+        # painter.setPen(QColor('#000000'))
+        # painter.drawRect(pos[0], pos[1], size[0], size[1])
 
     def start_animation(self):
         if self.animation:

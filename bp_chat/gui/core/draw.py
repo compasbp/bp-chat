@@ -2,7 +2,7 @@ from os.path import abspath
 
 from PyQt5.QtGui import (QColor, QFont, QPainter, QLinearGradient, QBrush, QRadialGradient,
                          QBitmap, QIcon)
-from PyQt5.QtCore import QPointF, Qt, QPoint, QRect, QSize
+from PyQt5.QtCore import QPointF, Qt, QPoint, QRect, QRectF, QSize, QAbstractAnimation, pyqtSignal
 
 
 def set_widget_background(widget, color):
@@ -208,3 +208,57 @@ def icon_from_file(icon_name):
 def path_to_images():
     #return ':/images/data/images/'
     return abspath('data/images/')
+
+
+class IconDrawer:
+
+    def __init__(self, parent):
+        self.parent = parent
+        self.animation = None
+
+    def draw_icon(self, painter: QPainter, size, under_mouse):
+        painter.setRenderHint(QPainter.Antialiasing)
+
+        icon_size: QSize = self.parent.iconSize()
+        icon: QIcon = self.parent.icon()
+        actual_size: QSize = icon.actualSize(icon_size)
+
+        dx, dy = size[0] - icon_size.width(), size[1] - icon_size.height()
+        dw, dh = icon_size.width() - actual_size.width(), icon_size.height() - actual_size.height()
+
+        if under_mouse:
+            c = QColor('#ffffff00')
+            c.setAlpha(0)
+            painter.setPen(c)
+            c2 = QColor('#ac7f06')
+            alpha = 0
+            if self.animation:
+                alpha = self.animation.alpha
+            c2.setAlphaF(alpha)
+            painter.setBrush(c2)
+            painter.drawEllipse(QRectF(0, 0, size[0], size[1]))
+
+        pixmap = icon.pixmap(icon_size)
+        painter.drawPixmap(dx / 2 + dw / 2, dy / 2 + dh / 2, pixmap)
+
+    def start_animation(self):
+        if self.animation:
+            self.animation.stop()
+            self.animation.deleteLater()
+        self.animation = IconRoundAnimation(self.parent)
+        self.animation.need_update.connect(self.parent.repaint)
+        self.animation.start()
+
+
+class IconRoundAnimation(QAbstractAnimation):
+
+    need_update = pyqtSignal()
+    alpha = 0
+    DURATION = 300
+
+    def duration(self):
+        return self.DURATION
+
+    def updateCurrentTime(self, currentTime):
+        self.alpha = currentTime / float(self.DURATION) / 2.0
+        self.need_update.emit()

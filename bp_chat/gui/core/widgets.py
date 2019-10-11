@@ -1,10 +1,10 @@
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QToolButton, QStackedLayout,
                              QLabel, QLineEdit, QStackedWidget, QSplitter, QTextEdit, QFrame)
 from PyQt5.QtGui import QPainter, QBrush, QColor, QIcon
-from PyQt5.QtCore import Qt, QRect, QPoint, QEvent, QSize
+from PyQt5.QtCore import Qt, QRect, QRectF, QPoint, QEvent, QSize, QAbstractAnimation, pyqtSignal
 
 from .draw import (set_widget_background, draw_shadow_round, draw_rounded_form,
-                   draw_shadow, draw_shadow_down, SHADOW_DOWN, SHADOW_RIGHT)
+                   draw_shadow, draw_shadow_down, SHADOW_DOWN, SHADOW_RIGHT, IconDrawer)
 
 
 class VLayoutWidget(QWidget):
@@ -183,6 +183,7 @@ class ButtonsGroup(QWidget):
         super().__init__(parent)
 
         self.lay = QHBoxLayout(self)
+        self.lay.setContentsMargins(0, 0, 0, 0)
         self.buttons = {}
 
     def add_button(self, name, iconname, text=None):
@@ -240,12 +241,14 @@ class SideShadow(QWidget):
 
 class ImagedButton(QToolButton):
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, size=(50, 50), icon_size=(32, 32)):
         super().__init__(parent)
 
-        self.setFixedSize(32, 32)
+        self.icon_drawer = IconDrawer(self)
+
+        self.setFixedSize(*size)
         self.setAutoRaise(True)
-        self.setIconSize(QSize(32, 32))
+        self.setIconSize(QSize(*icon_size))
 
     @classmethod
     def by_iconname(cls, iconname):
@@ -256,6 +259,14 @@ class ImagedButton(QToolButton):
         obj = cls()
         obj.setIcon(QIcon(fi))
         return obj
+
+    def paintEvent(self, e):
+        self.icon_drawer.draw_icon(QPainter(self), (self.width(), self.height()), self.underMouse())
+
+    def enterEvent(self, e):
+        ret = super().enterEvent(e)
+        self.icon_drawer.start_animation()
+        return ret
 
 
 

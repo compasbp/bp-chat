@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from ..models.list_model import ListModelItem
 from .funcs import item_from_object
 
@@ -50,7 +52,11 @@ class ChatItem(ListModelItem):
             return ''
 
     def getTimeString(self):
-        return '11:00'
+        message = self.chat.get_last_message()
+        if message:
+            item = item_from_object(message, MessageItem)
+            return item.getTimeString()
+        return None
 
     def getPixmap(self):
         return 'group'
@@ -75,7 +81,29 @@ class MessageItem(ListModelItem):
         return self.message.text
 
     def getTimeString(self):
-        return '11:00'
+        return self.getTimeStringBase(True)
+
+    def getTimeStringBase(self, full):
+        localTime = "--:--"
+        if self.message.datetime != None:
+            if full:
+                format = "%d.%m.%Y %H:%M" # :ss
+            else:
+                format = "%d.%m.%Y"
+
+            today = datetime.now()
+            year_today = today.year
+            month_today = today.month
+            day_today = today.day
+
+            timeday = self.message.datetime #datetime.fromtimestamp(self._time)
+            year = timeday.year
+            month = timeday.month
+            day = timeday.day
+            if year == year_today and month == month_today and day == day_today:
+                format = "%H:%M" # :ss
+            localTime = timeday.strftime(format)
+        return localTime
 
     def getPixmap(self):
         return None

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from .core.animate import *
 from .core.widgets import *
@@ -16,12 +16,20 @@ def main():
         2: User(2, 'serg'),
         3: User(3, 'Lev'),
     }
+    dt = timedelta(seconds=60)
+    _messages = {
+        1: Message(id=1, sender=users[1], chat=None, text="Hello 1!", datetime=datetime.now()-dt),
+        2: Message(id=2, sender=users[2], chat=None, text="Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.", datetime=datetime.now()),
+        3: Message(id=3, sender=users[1], chat=None, text="Hello 3!", datetime=datetime.now()+dt),
+    }
+    messages = {}
+    for i in range(10):
+        for j, m in _messages.items():
+            m: Message
+            messages[i*10 + j] = Message(id=m._id, sender=m.sender, chat=None, text=m.text, datetime=m.datetime)
+
     server_data = ServerData(users=users, chats={
-        1: Chat(1, 'Test chat 1', [], {
-            1: Message(id=1, sender=users[1], chat=None, text="Hello 1!", datetime=datetime.now()),
-            2: Message(id=2, sender=users[2], chat=None, text="Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.", datetime=datetime.now()),
-            3: Message(id=3, sender=users[1], chat=None, text="Hello 3!", datetime=datetime.now()),
-        }),
+        1: Chat(1, 'Test chat 1', [], messages),
         2: Chat(2, 'Test chat 2', [], {}),
         3: Chat(3, 'Test chat 3', [], {}),
     })

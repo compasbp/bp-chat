@@ -251,7 +251,7 @@ class IconDrawer:
             c2 = QColor('#000000')
             c2.setAlphaF(alpha*0.3)
             painter.setBrush(c2)
-            painter.drawEllipse(QRectF(0, 0, size[0], size[1]))
+            painter.drawEllipse(QRectF(pos[0], pos[1], size[0], size[1]))
 
         painter.drawPixmap(pos[0] + dx / 2 + dw / 2, pos[1] + dy / 2 + dh / 2, pixmap)
 

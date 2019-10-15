@@ -1,7 +1,7 @@
 
 from PyQt5.QtWidgets import QItemDelegate, QListView, QFrame, QStyledItemDelegate, QMenu
-from PyQt5.QtGui import QColor, QPainter, QFont, QFontMetrics, QPixmap, QCursor
-from PyQt5.QtCore import (QAbstractListModel, QSize, QPointF, QRectF, pyqtSignal, QEvent, Qt, QItemSelection,
+from PyQt5.QtGui import QColor, QPainter, QFont, QFontMetrics, QPixmap, QCursor, QPen
+from PyQt5.QtCore import (QAbstractListModel, QSize, QPointF, QPoint, QRectF, QRect, pyqtSignal, QEvent, Qt, QItemSelection,
                           QItemSelectionModel)
 
 from threading import Timer
@@ -53,28 +53,19 @@ class ListView(QListView):
 
             delegate.on_custom_selection_changed(self._custom_selection)
 
-        # if self.delegate:
-        #     self.delegate.mousePressEvent(e)
-
         return super().mousePressEvent(e)
 
     def mouseMoveEvent(self, e):
 
         delegate = self.itemDelegate()
+        pos = (e.pos().x(), e.pos().y())
 
         if self._custom_selection.active:
-            self._custom_selection.end = (e.pos().x(), e.pos().y())
+            self._custom_selection.end = pos
 
             delegate.on_custom_selection_changed(self._custom_selection)
 
-        # if self.delegate:
-        #     self.delegate.mouseMoveEvent(event, not self._current_enable)
-        #
-        # if self._current_enable:
-        #     self._current_mouse_pos = event.pos()
-        #     self._current_mouse_pos_scroll_h = self.horizontalScrollBar().value()
-        #
-        #     self.model().updateMe()
+        delegate.on_mouse_pos_changed(pos)
 
         return super().mouseMoveEvent(e)
 
@@ -82,20 +73,26 @@ class ListView(QListView):
 
         self._custom_selection.active = False
 
-        # if self.delegate:
-        #     self.delegate.mouseReleaseEvent(e)
-
         if e.button() == Qt.RightButton:
-            #self._menu_pos = e.pos()
             self.open_menu_for_selected_item(e.globalPos())
 
-
-        # else:
-        #     self._current_mouse_pos = event.pos()
-        #     self._current_enable = False
-        #     #self.tryOpenFile(self.indexAt(self._current_mouse_pos))
-
         return super().mouseReleaseEvent(e)
+
+    def hoverEvent(self, e):
+
+        delegate = self.itemDelegate()
+        pos = (e.pos().x(), e.pos().y())
+
+        delegate.on_mouse_pos_changed(pos)
+
+        return super().leaveEvent(e)
+
+    def leaveEvent(self, e):
+
+        delegate = self.itemDelegate()
+        delegate.on_mouse_pos_changed((-1, -1))
+
+        return super().leaveEvent(e)
 
     def clear_selection(self):
         self._current_selection = None
@@ -113,6 +110,9 @@ class ListDelegate(QItemDelegate):
 
     round_mask = None
     _mouse_pos = (-1, -1)
+    _mouse_on_item = None
+    _mouse_on_image = None
+    _mouse_on_name = None
 
     def __init__(self, listView, list_model):
         super().__init__(listView)
@@ -163,15 +163,8 @@ class ListDelegate(QItemDelegate):
             time_string_left = right - 6*len(time_string)-10 + self.list_model.getRightAdd()
             painter.drawText(time_string_left, top + 28, time_string)
 
-        pen = painter.pen()
-
-        pen.setWidth(1)
-        pen.setColor(QColor(30, 30, 30))
+        pen, font = self.prepare_pen_and_font_for_name(painter, item)
         painter.setPen(pen)
-
-        font = painter.font()
-        font.setPixelSize(14)
-        font.setBold(True)
         painter.setFont(font)
 
         _name = self.list_model.getItemName(item)
@@ -197,6 +190,18 @@ class ListDelegate(QItemDelegate):
         main_draw_results = (time_string_left, self.list_model.getRightAdd())
 
         self.list_model.customDraw(painter, item, (left, top, right, bottom), main_draw_results)
+
+    def prepare_pen_and_font_for_name(self, painter: QPainter, item):
+        pen = painter.pen()
+
+        pen.setWidth(1)
+        pen.setColor(QColor(30, 30, 30))
+
+        font = painter.font()
+        font.setPixelSize(14)
+        font.setBold(True)
+
+        return pen, font
 
     def prepare_base_left_top_right_bottom(self, option):
         return option.rect.left(), option.rect.top(), option.rect.right(), option.rect.bottom()
@@ -296,18 +301,18 @@ class ListDelegate(QItemDelegate):
             sz = pixmap.size()
             actual_size = (sz.width(), sz.height())
             #painter.drawImage(QPointF(left + 8 + _image_left_add, top + 8), pixmap.toImage())
-            self.icon_drawer.draw_pixmap(painter, pixmap, (left + 8, top + 8), size=(50, 50), under_mouse=self._is_mouse_on_image(left, top),
+            self.icon_drawer.draw_pixmap(painter, pixmap, (left + 8, top + 8), size=(50, 50),
+                    under_mouse=self._is_under_mouse(item),
                     icon_size=(50, 50), actual_size=actual_size, alpha=1.0)
 
-    def _is_mouse_on_image(self, left, top):
-        globalCursorPos = QCursor.pos()
-        pos = self.listView.mapFromGlobal(globalCursorPos)
-        #print((pos.x(), pos.y()), (left, top))
-        if pos.y() < top + 8 or pos.y() > top + 58:
-            return False
-        if left + 8 <= pos.x() <= left + 58:
-            return True
-        return False
+    def _is_under_mouse(self, item):
+        return self._is_mouse_on_image(item)
+
+    def _is_mouse_on_image(self, item):
+        return self._mouse_on_image == item
+
+    def _is_mouse_on_name(self, item):
+        return self._mouse_on_name == item
 
     def drawStatus(self, painter, item, left, top):
         pen = painter.pen()
@@ -342,13 +347,62 @@ class ListDelegate(QItemDelegate):
 
     def eventFilter(self, obj, event):
 
-        if event.type() in (QEvent.MouseMove, QEvent.HoverMove):
-            self._mouse_pos = event.pos().x(), event.pos().y()
+        # if event.type() in (QEvent.MouseMove, QEvent.HoverMove):
+        #     self._mouse_pos = pos = (event.pos().x(), event.pos().y())
+        #     self.on_mouse_pos_changed(pos)
+        #
+        # elif event.type() == QEvent.Leave:
+        #     self._mouse_pos = pos = (-1, -1)
+        #     self.on_mouse_pos_changed(pos)
 
         return super().eventFilter(obj, event)
 
     def on_custom_selection_changed(self, custom_selection):
         pass
+
+    def on_mouse_pos_changed(self, pos):
+        changed = False
+        self._mouse_pos = pos
+
+        index = self.listView.indexAt(QPoint(*pos))
+        if not index:
+            self._mouse_on_item = None
+            return
+
+        item = index.data()
+        if not item:
+            self._mouse_on_item = None
+            return
+
+        if self.change_value('_mouse_on_item', item):
+            changed = True
+
+        rect = self.listView.visualRect(index)
+
+        if self.calc_and_change_is_on_pos('_mouse_on_image', pos, item,
+                                          QRect(QPoint(rect.left() + 8, rect.top() + 8),
+                                                QPoint(rect.left() + 58, rect.top() + 58))):
+            changed = True
+
+        if self.calc_and_change_is_on_pos('_mouse_on_name', pos, item,
+                                          QRect(QPoint(rect.left() + 58, rect.top() + 16),
+                                                QPoint(rect.right(), rect.top() + 16 + 14))):
+            changed = True
+
+        if changed:
+            self.list_model.reset_model()
+
+    def change_value(self, name, value):
+        if getattr(self, name) != value:
+            setattr(self, name, value)
+            return True
+        return False
+
+    def calc_and_change_is_on_pos(self, name, pos, item, check_rect):
+        new_value = None
+        if check_rect.top() <= pos[1] <= check_rect.bottom() and check_rect.left() <= pos[0] <= check_rect.right():
+            new_value = item
+        return self.change_value(name, new_value)
 
 
 class ListModel(QAbstractListModel):
@@ -689,6 +743,15 @@ class MessagesListDelegate(ListDelegate):
 
     def make_menu(self):
         pass
+
+    def _is_under_mouse(self, item):
+        return self._is_mouse_on_image(item) or self._is_mouse_on_name(item)
+
+    def prepare_pen_and_font_for_name(self, painter: QPainter, item):
+        pen, font = super().prepare_pen_and_font_for_name(painter, item)
+        if self._is_mouse_on_name(item) or self._is_mouse_on_image(item):
+            font.setUnderline(True)
+        return pen, font
 
 
 class MessagesListModel(ListModel):

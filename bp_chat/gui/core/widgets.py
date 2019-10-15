@@ -360,6 +360,10 @@ class MessageInputWidget(QWidget):
         self.input_line = InputLine(self)
         self.stack_bottom.addWidget(self.input_line)
 
+        self.files_line = FilesLine(self)
+        self.files_line.add_file("Some file.png", "file")
+        self.stack_top.addWidget(self.files_line)
+
         self.setMaximumHeight(100)
 
     def paintEvent(self, QPaintEvent):
@@ -373,6 +377,44 @@ class MessageInputWidget(QWidget):
         painter.drawRect(QRect(QPoint(0, 0), QPoint(self.width(), 0)))
 
 
+class FilesLine(QWidget):
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        self.lay = QHBoxLayout(self)
+        self.lay.setSpacing(0)
+        self.lay.setContentsMargins(0, 0, 0, 0)
+
+        set_widget_background(self, '#eeeeee')
+
+    def add_file(self, filename, iconname=None):
+        file_item = FileItemWidget(filename, iconname, self)
+        self.lay.addWidget(file_item)
+
+    def paintEvent(self, e):
+        painter = QPainter(self)
+        painter.setPen(QColor('#dddddd'))
+        painter.drawLine(0, self.height()-1, self.width(), self.height()-1)
+
+
+class FileItemWidget(QWidget):
+
+    def __init__(self, filename, iconname=None, parent=None):
+        super().__init__(parent)
+
+        self.lay = QHBoxLayout(self)
+
+        self.lay.setSpacing(0)
+        self.lay.setContentsMargins(0, 0, 0, 0)
+
+        self.button = ImagedButton.by_iconname(iconname)
+        self.lay.addWidget(self.button)
+
+        self.label = QLabel(filename)
+        self.lay.addWidget(self.label)
+
+
 class InputLine(QWidget):
 
     def __init__(self, parent=None):
@@ -382,8 +424,12 @@ class InputLine(QWidget):
         self.lay.setColumnStretch(0, 100)
         self.lay.setContentsMargins(0, 0, 0, 0)
 
+        #set_widget_background(self, '#ffffff')
+
         self.text_edit = QTextEdit()
         self.text_edit.setFrameShape(QFrame.NoFrame)
+        set_widget_background(self.text_edit, '#ffffff')
+        self.text_edit.setStyleSheet("QTextEdit { padding-left:10; padding-top:10; padding-bottom:10; padding-right:10}")
         self.send_button = ImagedButton.by_iconname("send")
         self.lay.addWidget(self.text_edit, 0, 0)
         self.lay.addWidget(self.send_button, 0, 1)

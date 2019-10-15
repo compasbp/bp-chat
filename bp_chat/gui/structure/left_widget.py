@@ -20,6 +20,7 @@ class LeftWidget(VLayoutWidget):
 
         def _loading(*args):
             self.paged_widget.set_page('clear')
+            self.toolbar.set_page('settings')
             self.load_animation.stop()
             self.load_animation.start()
 
@@ -32,6 +33,10 @@ class LeftWidget(VLayoutWidget):
         toolbar.add_button("back", Toolbar.LEFT, "arrow_back", page='search').clicked.connect(
             lambda *args: toolbar.set_page("first"))
         toolbar.add_input("input", Toolbar.CENTER, page='search')
+
+        toolbar.add_page("settings")
+        toolbar.add_button("settings_back", Toolbar.LEFT, "arrow_back", page='settings').clicked.connect(
+            lambda *args: toolbar.set_page("first"))
 
         buttons_group = toolbar.add_buttons_group("buttons", part=Toolbar.BOTTOM)
         buttons_group.add_button("all", "all", "All")

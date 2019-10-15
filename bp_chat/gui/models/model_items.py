@@ -4,10 +4,25 @@ from ..models.list_model import ListModelItem
 from .funcs import item_from_object
 
 
-class UserItem(ListModelItem):
+class ColoredItem:
+    COLORS = (
+        '#bbe7b9', '#7eaae0', '#fbdaa0', '#e7e6bc', '#f4bbb4', '#9cbdf4', '#a1b2b7'
+    )
+    __LAST_COLOR = -1
+
+    @classmethod
+    def get_new_color(cls):
+        cls.__LAST_COLOR += 1
+        if cls.__LAST_COLOR > 6:
+            cls.__LAST_COLOR = 0
+        return ChatItem.COLORS[cls.__LAST_COLOR]
+
+
+class UserItem(ListModelItem, ColoredItem):
 
     def __init__(self, user):
         self.user = user
+        self.color = self.get_new_color()
 
     def getName(self):
         return self.user.name
@@ -19,27 +34,20 @@ class UserItem(ListModelItem):
         return '11:00'
 
     def getPixmap(self):
-        return None
+        return 'user'
 
     def getBadgesCount(self):
         return 3
 
+    def getColor(self):
+        return self.color
 
-class ChatItem(ListModelItem):
 
-    COLORS = (
-        '#bbe7b9', '#7eaae0', '#fbdaa0', '#e7e6bc', '#f4bbb4', '#9cbdf4', '#a1b2b7'
-    )
-    __LAST_COLOR = -1
+class ChatItem(ListModelItem, ColoredItem):
 
     def __init__(self, chat):
         self.chat = chat
-
-        ChatItem.__LAST_COLOR += 1
-        if ChatItem.__LAST_COLOR > 6:
-            ChatItem.__LAST_COLOR = 0
-
-        self.chat_color = ChatItem.COLORS[ChatItem.__LAST_COLOR]
+        self.color = self.get_new_color()
 
     def getName(self):
         return self.chat.title
@@ -65,7 +73,7 @@ class ChatItem(ListModelItem):
         return 3
 
     def getColor(self):
-        return self.chat_color
+        return self.color
 
 
 class MessageItem(ListModelItem):
@@ -73,9 +81,12 @@ class MessageItem(ListModelItem):
     def __init__(self, message):
         self.message = message
 
+    @property
+    def sender_item(self) -> UserItem:
+        return item_from_object(self.message.sender, UserItem)
+
     def getName(self):
-        user = item_from_object(self.message.sender, UserItem)
-        return user.getName()
+        return self.sender_item.getName()
 
     def getSecondText(self):
         return self.message.text
@@ -106,9 +117,12 @@ class MessageItem(ListModelItem):
         return localTime
 
     def getPixmap(self):
-        return None
+        return self.sender_item.getPixmap()
 
     def getBadgesCount(self):
         return 0
+
+    def getColor(self):
+        return self.sender_item.getColor()
 
 

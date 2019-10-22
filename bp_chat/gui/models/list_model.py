@@ -1,8 +1,8 @@
 
-from PyQt5.QtWidgets import QItemDelegate, QListView, QFrame, QStyledItemDelegate, QMenu
+from PyQt5.QtWidgets import (QItemDelegate, QListView, QFrame, QStyledItemDelegate, QMenu, QScrollBar, QAbstractItemView)
 from PyQt5.QtGui import QColor, QPainter, QFont, QFontMetrics, QPixmap, QCursor, QPen
 from PyQt5.QtCore import (QAbstractListModel, QSize, QPointF, QPoint, QRectF, QRect, pyqtSignal, QEvent, Qt, QItemSelection,
-                          QItemSelectionModel)
+                          QItemSelectionModel, QPropertyAnimation)
 
 from threading import Timer
 
@@ -16,12 +16,18 @@ class ListView(QListView):
 
     _selected_callback = None
     _current_selection = None
+    _scroll_animation = None
 
     def __init__(self, parent=None):
         super().__init__(parent)
 
         self.setFrameShape(QFrame.NoFrame)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        scroll: QScrollBar = self.verticalScrollBar()
+        scroll.setPageStep(10)
+        scroll.setSingleStep(10)
+        self.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
         self.setMouseTracking(True)
 
         self._custom_selection = CustomSelection()
@@ -93,6 +99,35 @@ class ListView(QListView):
         delegate.on_mouse_pos_changed((-1, -1))
 
         return super().leaveEvent(e)
+
+    def wheelEvent(self, e):
+        #return super().wheelEvent(e)
+        dy = e.pixelDelta().y()
+        dya = e.angleDelta().y()
+        scroll: QScrollBar = self.verticalScrollBar()
+        #print(dy, dya, scroll.value(), scroll.maximum())
+        e.ignore()
+        last_value = scroll.value()
+        new_value = last_value - int(round(dya/1))
+        if new_value < 0:
+            new_value = 0
+        elif new_value > scroll.maximum():
+            new_value = scroll.maximum()
+
+        if self._scroll_animation:
+            self._scroll_animation.stop()
+            last_value = scroll.value() #self._scroll_animation._next
+
+        self._scroll_animation = QPropertyAnimation(scroll, b"value")
+        self._scroll_animation.setDuration(100)
+        self._scroll_animation.setStartValue(last_value)
+        self._scroll_animation.setEndValue(new_value)
+        self._scroll_animation._next = new_value
+
+        self._scroll_animation.start()
+
+        #scroll.setValue(new_value)
+        #return super().wheelEvent(e)
 
     def clear_selection(self):
         self._current_selection = None

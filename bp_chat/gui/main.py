@@ -23,10 +23,12 @@ def main():
         3: Message(id=3, sender=users[1], chat=None, text="Hello 3!", datetime=datetime.now()+dt),
     }
     messages = {}
+    ii = 1
     for i in range(10):
         for j, m in _messages.items():
             m: Message
-            messages[i*10 + j] = Message(id=m._id, sender=m.sender, chat=None, text=m.text, datetime=m.datetime)
+            messages[ii] = Message(id=ii, sender=m.sender, chat=None, text='{}: {}'.format(ii, m.text), datetime=datetime.now()-timedelta(seconds=600-(ii*10)))
+            ii += 1
 
     server_data = ServerData(users=users, chats={
         1: Chat(1, 'Test chat 1', [], messages),

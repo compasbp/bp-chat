@@ -55,8 +55,11 @@ class LeftWidget(VLayoutWidget):
         list_view = ListView(chats_page)
         chats_page.addWidget(list_view)
 
-        # update_button = QPushButton("Update")
-        # self.addWidget(update_button)
+        lay = QHBoxLayout()
+        self.addLayout(lay)
+        self.update_button = update_button = QPushButton("Update")
+        update_button.setFixedHeight(50)
+        lay.addWidget(update_button)
 
         self.list_model = ChatsModel(list_view)
         self.list_view = list_view

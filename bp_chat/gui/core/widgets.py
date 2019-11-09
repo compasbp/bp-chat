@@ -21,6 +21,9 @@ class VLayoutWidget(QWidget):
     def addWidget(self, widget):
         self.lay.addWidget(widget)
 
+    def addLayout(self, layout):
+        self.lay.addLayout(layout)
+
 
 class PagedWidget(QStackedWidget):
 

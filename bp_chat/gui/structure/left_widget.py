@@ -6,7 +6,7 @@ from ..models.list_model import ListView, ChatsModel
 
 class LeftWidget(VLayoutWidget):
 
-    MARGINS = (0, 0, 1, 0)
+    #MARGINS = (0, 0, 1, 0)
 
     def __init__(self, splitter, main_widget):
         super().__init__(splitter)
@@ -52,11 +52,11 @@ class LeftWidget(VLayoutWidget):
         chats_page: VLayoutWidget = paged_widget.add_page('chats', VLayoutWidget())
         paged_widget.set_page('chats')
 
-        list_view = ListView(self)
+        list_view = ListView(chats_page)
         chats_page.addWidget(list_view)
 
-        update_button = QPushButton("Update")
-        self.addWidget(update_button)
+        # update_button = QPushButton("Update")
+        # self.addWidget(update_button)
 
         self.list_model = ChatsModel(list_view)
         self.list_view = list_view

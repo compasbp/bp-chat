@@ -1,6 +1,7 @@
 
-from PyQt5.QtWidgets import (QItemDelegate, QListView, QFrame, QStyledItemDelegate, QMenu, QScrollBar, QAbstractItemView)
-from PyQt5.QtGui import QColor, QPainter, QFont, QFontMetrics, QPixmap, QCursor, QPen
+from PyQt5.QtWidgets import (QItemDelegate, QListView, QFrame, QStyledItemDelegate, QMenu, QScrollBar,
+                             QAbstractItemView, QApplication)
+from PyQt5.QtGui import QColor, QPainter, QFont, QFontMetrics, QPixmap, QCursor, QPen, QGuiApplication
 from PyQt5.QtCore import (QAbstractListModel, QSize, QPointF, QPoint, QRectF, QRect, pyqtSignal, QEvent, Qt, QItemSelection,
                           QItemSelectionModel, QPropertyAnimation)
 
@@ -84,7 +85,7 @@ class ListView(QListView):
 
         return super().mouseReleaseEvent(e)
 
-    def hoverEvent(self, e):
+    def enterEvent(self, e):
 
         delegate = self.itemDelegate()
         pos = (e.pos().x(), e.pos().y())
@@ -400,32 +401,45 @@ class ListDelegate(QItemDelegate):
         self._mouse_pos = pos
 
         index = self.listView.indexAt(QPoint(*pos))
-        if not index:
-            self._mouse_on_item = None
-            return
+        item = None
+        if index:
+            item = index.data()
 
-        item = index.data()
-        if not item:
-            self._mouse_on_item = None
-            return
+        if item:
+            if self.change_value('_mouse_on_item', item):
+                changed = True
 
-        if self.change_value('_mouse_on_item', item):
-            changed = True
+            rect = self.listView.visualRect(index)
 
-        rect = self.listView.visualRect(index)
+            if self.calc_and_change_is_on_pos('_mouse_on_image', pos, item,
+                                              QRect(QPoint(rect.left() + 8, rect.top() + 8),
+                                                    QPoint(rect.left() + 58, rect.top() + 58))):
+                changed = True
 
-        if self.calc_and_change_is_on_pos('_mouse_on_image', pos, item,
-                                          QRect(QPoint(rect.left() + 8, rect.top() + 8),
-                                                QPoint(rect.left() + 58, rect.top() + 58))):
-            changed = True
+            if self.calc_and_change_is_on_pos('_mouse_on_name', pos, item,
+                                              QRect(QPoint(rect.left() + 58, rect.top() + 16),
+                                                    QPoint(rect.right(), rect.top() + 16 + 14))):
+                changed = True
 
-        if self.calc_and_change_is_on_pos('_mouse_on_name', pos, item,
-                                          QRect(QPoint(rect.left() + 58, rect.top() + 16),
-                                                QPoint(rect.right(), rect.top() + 16 + 14))):
-            changed = True
+        else:
+            for name in ('item', 'image', 'name'):
+                if self.change_value('_mouse_on_'+name, None):
+                    changed = True
 
         if changed:
+            self.update_cursor()
             self.list_model.reset_model()
+
+    def update_cursor(self):
+        to_shape = Qt.ArrowCursor
+        if self._mouse_on_image or self._mouse_on_name:
+            to_shape = Qt.PointingHandCursor
+
+        listView: QListView = self.listView
+        cursor: QCursor = listView.cursor()
+        if cursor.shape() != to_shape:
+            cursor.setShape(to_shape)
+            listView.setCursor(cursor)
 
     def change_value(self, name, value):
         if getattr(self, name) != value:

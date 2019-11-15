@@ -1,3 +1,5 @@
+from os.path import basename
+
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QToolButton, QStackedLayout,
                              QLabel, QLineEdit, QStackedWidget, QSplitter, QTextEdit, QFrame)
 from PyQt5.QtGui import QPainter, QBrush, QColor, QIcon
@@ -364,10 +366,24 @@ class MessageInputWidget(QWidget):
         self.stack_bottom.addWidget(self.input_line)
 
         self.files_line = FilesLine(self)
-        self.files_line.add_file("Some file.png", "file")
+        #self.files_line.add_file("Some file.png", "file")
         self.stack_top.addWidget(self.files_line)
 
         self.setMaximumHeight(100)
+
+        self.setAcceptDrops(True)
+
+    def dragEnterEvent(self, e):
+        if (e.mimeData().hasUrls()):
+            e.acceptProposedAction()
+
+    def dropEvent(self, e):
+        for url in e.mimeData().urls():
+            filename = url.toLocalFile()
+            print("Dropped file:", filename)
+            fi = basename(filename)
+            if self.files_line.count() < 1:
+                self.files_line.add_file(fi, "file")
 
     def paintEvent(self, QPaintEvent):
         painter = QPainter(self)
@@ -395,6 +411,9 @@ class FilesLine(QWidget):
         file_item = FileItemWidget(filename, iconname, self)
         self.lay.addWidget(file_item)
 
+    def count(self):
+        return self.lay.count()
+
     def paintEvent(self, e):
         painter = QPainter(self)
         painter.setPen(QColor('#dddddd'))
@@ -417,6 +436,14 @@ class FileItemWidget(QWidget):
         self.label = QLabel(filename)
         self.lay.addWidget(self.label)
 
+        self.close_button = ImagedButton.by_iconname('cancel')
+        self.lay.addWidget(self.close_button)
+        self.close_button.clicked.connect(self.remove_file)
+
+    def remove_file(self):
+        lay:QHBoxLayout = self.parent().lay
+        lay.removeWidget(self)
+
 
 class InputLine(QWidget):
 
@@ -436,3 +463,5 @@ class InputLine(QWidget):
         self.send_button = ImagedButton.by_iconname("send")
         self.lay.addWidget(self.text_edit, 0, 0)
         self.lay.addWidget(self.send_button, 0, 1)
+
+        self.text_edit.setAcceptDrops(False)

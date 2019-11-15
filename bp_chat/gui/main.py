@@ -37,6 +37,7 @@ def main():
     })
 
     w = main_widget(QWidget())
+
     w.resize(800, 600)
     main_lay = QVBoxLayout(w)
     main_lay.setContentsMargins(0, 0, 0, 0)

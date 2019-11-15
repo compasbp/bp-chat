@@ -1,7 +1,7 @@
 
 from PyQt5.QtWidgets import (QItemDelegate, QListView, QFrame, QStyledItemDelegate, QMenu, QScrollBar,
                              QAbstractItemView, QApplication)
-from PyQt5.QtGui import QColor, QPainter, QFont, QFontMetrics, QPixmap, QCursor, QPen, QGuiApplication
+from PyQt5.QtGui import QColor, QPainter, QFont, QFontMetrics, QPixmap, QCursor, QPen, QGuiApplication, QFontMetricsF
 from PyQt5.QtCore import (QAbstractListModel, QSize, QPointF, QPoint, QRectF, QRect, pyqtSignal, QEvent, Qt, QItemSelection,
                           QItemSelectionModel, QPropertyAnimation)
 
@@ -204,7 +204,7 @@ class ListDelegate(QItemDelegate):
         painter.setFont(font)
 
         _name = self.list_model.getItemName(item)
-        _name_left = left + 50 + 16
+        _name_left = left + self._name_left_add()
 
         if time_string_left >= 10:
             brect = painter.boundingRect(QRectF(_name_left, 0, 9999, 50), _name)
@@ -227,17 +227,26 @@ class ListDelegate(QItemDelegate):
 
         self.list_model.customDraw(painter, item, (left, top, right, bottom), main_draw_results)
 
+    def _name_left_add(self):
+        return 50 + 16
+
     def prepare_pen_and_font_for_name(self, painter: QPainter, item):
         pen = painter.pen()
 
         pen.setWidth(1)
         pen.setColor(QColor(30, 30, 30))
 
-        font = painter.font()
-        font.setPixelSize(14)
-        font.setBold(True)
+        font = self.prepare_font_for_name()
 
         return pen, font
+
+    def prepare_font_for_name(self):
+        # font = painter.font()
+        font = QFont("Arial")
+        font.setPixelSize(14)
+        font.setBold(True)
+        return font
+
 
     def prepare_base_left_top_right_bottom(self, option):
         return option.rect.left(), option.rect.top(), option.rect.right(), option.rect.bottom()
@@ -416,9 +425,16 @@ class ListDelegate(QItemDelegate):
                                                     QPoint(rect.left() + 58, rect.top() + 58))):
                 changed = True
 
+            _name = item.getName()
+            font = self.prepare_font_for_name()
+            fm = QFontMetricsF(font)
+            br = fm.boundingRect(_name)
+            _left = rect.left() + self._name_left_add()
+            _right = min(rect.right(), _left + br.width())
+
             if self.calc_and_change_is_on_pos('_mouse_on_name', pos, item,
-                                              QRect(QPoint(rect.left() + 58, rect.top() + 16),
-                                                    QPoint(rect.right(), rect.top() + 16 + 14))):
+                                              QRect(QPoint(_left-10, rect.top() + 16),
+                                                    QPoint(_right, rect.top() + 16 + 14))):
                 changed = True
 
         else:

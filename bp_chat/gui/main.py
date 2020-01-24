@@ -39,6 +39,7 @@ def make_example():
     return users, chats
 
 
+
 def main():
     app = QApplication([])
 
@@ -50,6 +51,7 @@ def main():
 
     w = main_widget(QWidget(), app)
     w.resize(app.config.window_width, app.config.window_height)
+    
     main_lay = QVBoxLayout(w)
     main_lay.setContentsMargins(0, 0, 0, 0)
 

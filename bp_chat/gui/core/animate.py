@@ -12,7 +12,7 @@ from .draw import draw_rounded_form, draw_shadow_down, draw_shadow_round, set_wi
 def favicon():
     return QIcon('data/images/favicon.png')
 
-def main_widget(widget:QWidget):
+def main_widget(widget:QWidget, app):
     fix_window(widget)
     widget.was_maximized = False
     widget.setWindowIcon(favicon())

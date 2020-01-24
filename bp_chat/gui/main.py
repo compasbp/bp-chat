@@ -6,11 +6,10 @@ from .models.model_items import ChatItem, MessageItem
 from .structure.left_widget import LeftWidget
 from .structure.right_widget import RightWidget
 from bp_chat.logic.data import ServerData, User, Chat, Message
+from bp_chat.core.app_config import AppConfig
 
 
-def main():
-    app = QApplication([])
-
+def make_example():
     users = {
         1: User(1, 'wind'),
         2: User(2, 'serg'),
@@ -18,26 +17,39 @@ def main():
     }
     dt = timedelta(seconds=60)
     _messages = {
-        1: Message(id=1, sender=users[1], chat=None, text="Hello 1!", datetime=datetime.now()-dt),
-        2: Message(id=2, sender=users[2], chat=None, text="Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.", datetime=datetime.now()),
-        3: Message(id=3, sender=users[1], chat=None, text="Hello 3!", datetime=datetime.now()+dt),
+        1: Message(id=1, sender=users[1], chat=None, text="Hello 1!", datetime=datetime.now() - dt),
+        2: Message(id=2, sender=users[2], chat=None,
+                   text="Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
+                   datetime=datetime.now()),
+        3: Message(id=3, sender=users[1], chat=None, text="Hello 3!", datetime=datetime.now() + dt),
     }
     messages = {}
     ii = 1
     for i in range(10):
         for j, m in _messages.items():
             m: Message
-            messages[ii] = Message(id=ii, sender=m.sender, chat=None, text='{}: {}'.format(ii, m.text), datetime=datetime.now()-timedelta(seconds=600-(ii*10)))
+            messages[ii] = Message(id=ii, sender=m.sender, chat=None, text='{}: {}'.format(ii, m.text),
+                                   datetime=datetime.now() - timedelta(seconds=600 - (ii * 10)))
             ii += 1
-
-    server_data = ServerData(users=users, chats={
+    chats = {
         1: Chat(1, 'Test chat 1', [], messages),
         2: Chat(2, 'Test chat 2', [], {}),
         3: Chat(3, 'Test chat 3', [], {}),
-    })
+    }
+    return users, chats
 
-    w = main_widget(QWidget())
-    w.resize(800, 600)
+
+def main():
+    app = QApplication([])
+
+    app.config = AppConfig()
+    app.config.load()
+
+    users, chats = make_example()
+    server_data = ServerData(users=users, chats=chats)
+
+    w = main_widget(QWidget(), app)
+    w.resize(app.config.window_width, app.config.window_height)
     main_lay = QVBoxLayout(w)
     main_lay.setContentsMargins(0, 0, 0, 0)
 
@@ -60,9 +72,15 @@ def main():
 
     splitter.add_widget(left_widget, LeftRightSplitter.LEFT)
     splitter.add_widget(right_widget, LeftRightSplitter.RIGHT)
-    splitter.setSizes([100, 200])
 
-    w.show()
+    splitter.setSizes([app.config.window_main_split_w, app.config.window_main_split_h])
+
+    if app.config.window_maximized:
+        w.showMaximized()
+    else:
+        w.show()
+        if app.config.window_x > 0 and app.config.window_y > 0:
+            w.move(app.config.window_x, app.config.window_y)
 
     tray_icon = SystemTrayIcon(favicon(), w, app)
     tray_icon.show()

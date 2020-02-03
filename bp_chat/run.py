@@ -1,4 +1,5 @@
 from sys import argv
+from time import sleep
 
 from PyQt5.QtWidgets import QPushButton, QApplication
 
@@ -9,21 +10,27 @@ from bp_chat.gui.core.gui_thread import to_gui_thread
 
 
 @as_app
-def main():
+def main(app):
     if 'api' in argv:
-        main_api()
+        main_api(app)
     else:
-        main_gui()
+        main_gui(app)
 
 
-def main_api():
+def main_api(app):
     #raise Exception('api')
-    from requests import get
-    r = get('ya.ru')
-    print(len(r.text))
+    # from requests import get
+    # r = get('ya.ru')
+    # print(len(r.text))
+    con = Connection(['127.0.0.1'], app)
+    #con = Connection(['223.1.1.84'], app)
+    con.connect()
+
+    while True:
+        sleep(1)
 
 
-def main_gui():
+def main_gui(app):
     from bp_chat.gui.main import main as _main
     _main()
 

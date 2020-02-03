@@ -1,4 +1,5 @@
-from requests import get
+from requests import get, exceptions
+from json import JSONDecodeError
 
 from bp_chat.core.action import Action, ActionGroup, ActionsQueue
 
@@ -7,7 +8,8 @@ class Connection:
 
     _on_connected = None
 
-    def __init__(self, addresses):
+    def __init__(self, addresses, app):
+        self.app = app
         self.points = [ServerPoint(a, self) for a in addresses]
 
     def connect(self):
@@ -36,15 +38,44 @@ class ServerPoint:
     address: str
 
     def __init__(self, address: str, connection: Connection):
-        self.address = address
+        pre = 'https'
+        port = '8887'
+
+        if '://' in address:
+            lst = address.split('://')
+            pre, address = lst[0], lst[1]
+
+        if '/' in address:
+            address = address.split('/')[0] # FIXME !!!
+
+        if ':' in address:
+            lst = address.split(':')
+            port, address = lst[1], lst[0]
+
+        self.address = pre + '://' + address + ':' + port + '/api/connect/'
         self.connection = connection
 
     def connect(self):
-        self.r = get(self.address, timeout=3)
-        self.on_connected()
+        try:
+            r = get(self.address, timeout=3, verify=False) # FIXME !!!
+        except exceptions.ConnectionError as e:
+            self.connection.app.console.debug('cant connect: {}'.format(e))
+            return
+
+        try:
+            result = r.json()
+        except JSONDecodeError as e:
+            result = None
+            self.connection.app.console.debug(repr(e))
+
+        if result:
+            self.on_connected(result)
 
     def disconnect(self):
         pass
 
-    def on_connected(self):
-        self.connection.on_connected(self)
+    def on_connected(self, result):
+        if self.connection.on_connected:
+            self.connection.on_connected(self)
+        else:
+            self.connection.app.console.debug(result)

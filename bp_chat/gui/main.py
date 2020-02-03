@@ -9,6 +9,64 @@ from bp_chat.logic.data import ServerData, User, Chat, Message
 from bp_chat.core.app_config import AppConfig
 
 
+def main():
+    app = QApplication([])
+
+    app.config = AppConfig()
+    app.config.load()
+
+    users, chats = make_example()
+    server_data = ServerData(users=users, chats=chats)
+
+    w = make_main_widget(app, server_data)
+
+    if app.config.window_maximized:
+        w.showMaximized()
+    else:
+        w.show()
+        if app.config.window_x > 0 and app.config.window_y > 0:
+            w.move(app.config.window_x, app.config.window_y)
+
+    tray_icon = SystemTrayIcon(favicon(), w, app)
+    tray_icon.show()
+    # tray_icon.raise_()
+    tray_icon.showMessage("BP Chat is started", "Hello!", favicon())
+
+    app.exec_()
+
+
+def make_main_widget(app, server_data):
+    w = main_widget(QWidget(), app)
+    w.resize(app.config.window_width, app.config.window_height)
+
+    main_lay = QVBoxLayout(w)
+    main_lay.setContentsMargins(0, 0, 0, 0)
+
+    splitter = LeftRightSplitter(w)
+    main_lay.addWidget(splitter)
+
+    left_widget = LeftWidget(splitter, w)
+    left_widget.list_model.model_item = ChatItem
+    left_widget.list_model.items_dict = server_data.chats
+    right_widget = RightWidget(app, splitter, left_widget)
+    right_widget.list_model.model_item = MessageItem
+    right_widget.list_model.items_dict = {}
+
+    def on_chat_selected(selected_chats):
+        if selected_chats:
+            chat = selected_chats[0].chat
+            right_widget.open_chat(chat)
+
+    left_widget.list_view.set_selected_callback(on_chat_selected)
+
+    splitter.add_widget(left_widget, LeftRightSplitter.LEFT)
+    splitter.add_widget(right_widget, LeftRightSplitter.RIGHT)
+
+    splitter.setSizes([app.config.window_main_split_w, app.config.window_main_split_h])
+
+    return w
+
+
 def make_example():
     users = {
         1: User(1, 'wind'),
@@ -37,56 +95,3 @@ def make_example():
         3: Chat(3, 'Test chat 3', [], {}),
     }
     return users, chats
-
-
-
-def main():
-    app = QApplication([])
-
-    app.config = AppConfig()
-    app.config.load()
-
-    users, chats = make_example()
-    server_data = ServerData(users=users, chats=chats)
-
-    w = main_widget(QWidget(), app)
-    w.resize(app.config.window_width, app.config.window_height)
-    
-    main_lay = QVBoxLayout(w)
-    main_lay.setContentsMargins(0, 0, 0, 0)
-
-    splitter = LeftRightSplitter(w)
-    main_lay.addWidget(splitter)
-
-    left_widget = LeftWidget(splitter, w)
-    left_widget.list_model.model_item = ChatItem
-    left_widget.list_model.items_dict = server_data.chats
-    right_widget = RightWidget(app, splitter, left_widget)
-    right_widget.list_model.model_item = MessageItem
-    right_widget.list_model.items_dict = {}
-
-    def on_chat_selected(selected_chats):
-        if selected_chats:
-            chat = selected_chats[0].chat
-            right_widget.open_chat(chat)
-
-    left_widget.list_view.set_selected_callback(on_chat_selected)
-
-    splitter.add_widget(left_widget, LeftRightSplitter.LEFT)
-    splitter.add_widget(right_widget, LeftRightSplitter.RIGHT)
-
-    splitter.setSizes([app.config.window_main_split_w, app.config.window_main_split_h])
-
-    if app.config.window_maximized:
-        w.showMaximized()
-    else:
-        w.show()
-        if app.config.window_x > 0 and app.config.window_y > 0:
-            w.move(app.config.window_x, app.config.window_y)
-
-    tray_icon = SystemTrayIcon(favicon(), w, app)
-    tray_icon.show()
-    # tray_icon.raise_()
-    tray_icon.showMessage("BP Chat is started", "Hello!", favicon())
-
-    app.exec_()

@@ -14,7 +14,7 @@ def as_app(func):
 def run_app(func):
    app = App.instance()
 
-   run_in_try(func)
+   run_in_try(lambda: func(app))
 
    app.close()
 
@@ -23,6 +23,7 @@ class App:
 
     __instance = None
     __instance_count = 0
+    console = None
 
     @staticmethod
     def instance():
@@ -33,7 +34,7 @@ class App:
 
     def __init__(self, instance_id):
         self.__instance_id = instance_id
-        ConsoleThread.instance(True, instance_id)
+        self.console = ConsoleThread.instance(True, instance_id)
         ActionsQueue.instance(True, instance_id)
 
     def close(self):

@@ -346,7 +346,7 @@ class ListDelegate(QItemDelegate):
 
             _text = self.prepareMessageText(item, second_text, left_top_right_bottom)
 
-            self.drawMessageText(painter, _text, left_top_right_bottom)
+            self.drawMessageText(painter, _text, left_top_right_bottom, item)
 
     def message_text_color(self):
         return QColor(150, 150, 150)
@@ -379,7 +379,7 @@ class ListDelegate(QItemDelegate):
 
         return _text
 
-    def drawMessageText(self, painter, text, left_top_right_bottom):
+    def drawMessageText(self, painter, text, left_top_right_bottom, item):
         left, top, right, bottom = left_top_right_bottom
         painter.drawText(left, top, text)
 
@@ -763,6 +763,7 @@ class MessagesListDelegate(ListDelegate):
 
     def prepareMessageText(self, item, second_text, left_top_right_bottom):
         left, top, right, bottom = left_top_right_bottom
+        right -= 10
 
         drawer = getattr(item, 'drawer', None)
         if not drawer:
@@ -780,6 +781,7 @@ class MessagesListDelegate(ListDelegate):
 
         lines = drawer.lines #second_text.split('\n')
         new_lines = []
+        max_width = 0
 
         for line in lines:
             top_now += line_height
@@ -788,20 +790,13 @@ class MessagesListDelegate(ListDelegate):
             to_new_lines = []
             for i, w_drawer in enumerate(line):
                 left_now += space_width
-
-                # word_width = 0
-                # for a in w_drawer:
-                #     a_width = drawer.metrics.boundingRect(0, 0, 9999, 9999, Qt.Horizontal, a).width()
-                #     word_width += a_width
-
-                #r = metrics.boundingRect(left_now, top_now, 9999, 9999, Qt.Horizontal, w)
-                #r_right = left_now + word_width #w_drawer.width
                 r_right = left_now + w_drawer.width
 
                 if r_right > right:
+                    max_width = max(max_width, left_now-space_width)
                     to_new_lines.append(line[last_i:i])
                     last_i = i
-                    left_now = left
+                    left_now = left + w_drawer.width
                     top_now += line_height
                 else:
                     left_now = r_right
@@ -815,8 +810,9 @@ class MessagesListDelegate(ListDelegate):
 
         return line_height, new_lines
 
-    def drawMessageText(self, painter, line_height_and_lines, left_top_right_bottom):
+    def drawMessageText(self, painter, line_height_and_lines, left_top_right_bottom, item):
         left, top, right, bottom = left_top_right_bottom
+        right -= 10
         line_height, lines = line_height_and_lines
 
         custom_selection: CustomSelection = self.listView._custom_selection
@@ -824,6 +820,11 @@ class MessagesListDelegate(ListDelegate):
         sel_end = custom_selection.end
         if sel_start and sel_end and sel_start[1] > sel_end[1]:
             sel_start, sel_end = sel_end, sel_start
+
+        drawer: MessageDrawer = item.drawer
+        space_width = drawer.w_width
+
+        max_width = 0
 
         top_now = top
         for words in lines:
@@ -841,9 +842,9 @@ class MessagesListDelegate(ListDelegate):
             w_left = left
             for w in words:
 
-                a_left = w_left
+                a_left = a_right = w_left
                 for a in w:
-                    r = painter.boundingRect(QRectF(0, 0, 500, 500), a)
+                    r = drawer.metrics.boundingRect(0, 0, 9999, 9999, Qt.Horizontal, a) #painter.boundingRect(QRectF(0, 0, 500, 500), a)
 
                     a_right = a_left + r.width()
 
@@ -859,8 +860,11 @@ class MessagesListDelegate(ListDelegate):
 
                     a_left += r.width()
 
+                max_width = max(max_width, a_left)
+
                 painter.drawText(w_left, top_now, w)
-                w_left = a_left + 5
+                w_left = a_right + space_width
+
 
             top_now += line_height
 

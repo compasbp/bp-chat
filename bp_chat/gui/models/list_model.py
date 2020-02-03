@@ -1,9 +1,9 @@
 
 from PyQt5.QtWidgets import (QItemDelegate, QListView, QFrame, QStyledItemDelegate, QMenu, QScrollBar,
-                             QAbstractItemView, QApplication)
-from PyQt5.QtGui import QColor, QPainter, QFont, QFontMetrics, QPixmap, QCursor, QPen, QGuiApplication, QFontMetricsF
+                             QAbstractItemView, QApplication, QScrollBar, QGraphicsOpacityEffect)
+from PyQt5.QtGui import (QColor, QPainter, QFont, QFontMetrics, QPixmap, QCursor, QPen, QGuiApplication, QFontMetricsF)
 from PyQt5.QtCore import (QAbstractListModel, QSize, QPointF, QPoint, QRectF, QRect, pyqtSignal, QEvent, Qt, QItemSelection,
-                          QItemSelectionModel, QPropertyAnimation)
+                          QItemSelectionModel, QPropertyAnimation, QEasingCurve)
 
 from threading import Timer
 
@@ -18,6 +18,8 @@ class ListView(QListView):
     _selected_callback = None
     _current_selection = None
     _scroll_animation = None
+    _scroll_show_animation = None
+    _scroll_ignore_value = False
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -33,6 +35,16 @@ class ListView(QListView):
 
         self._custom_selection = CustomSelection()
 
+        self.scroll = QScrollBar(self)
+        #self.scroll.setWindowOpacity(0)
+        self.scroll.valueChanged.connect(self.on_scroll_changed)
+        scroll.rangeChanged.connect(self.on_scroll_range_changed)
+
+    def showEvent(self, *args, **kwargs):
+        ret = super().showEvent(*args, **kwargs)
+        self.animate_scroll_show(show=False, time=100)
+        return ret
+
     def set_selected_callback(self, callback):
         self._selected_callback = callback
 
@@ -45,8 +57,19 @@ class ListView(QListView):
             self._selected_callback(_new_selection)
         self.model().reset_model()
 
+    def on_scroll_changed(self, value):
+        if self._scroll_ignore_value:
+            return
+        scroll: QScrollBar = self.verticalScrollBar()
+        scroll.setValue(value)
+
+    def on_scroll_range_changed(self, _min, _max):
+        self.scroll.setRange(_min, _max)
+
     def resizeEvent(self, e):
         ret = super().resizeEvent(e)
+        self.scroll.move(self.width() - 10, 0)
+        self.scroll.resize(10, self.height())
         self.model().reset_model()
         return ret
 
@@ -92,12 +115,16 @@ class ListView(QListView):
 
         delegate.on_mouse_pos_changed(pos)
 
-        return super().leaveEvent(e)
+        self.animate_scroll_show(show=True)
+
+        return super().enterEvent(e)
 
     def leaveEvent(self, e):
 
         delegate = self.itemDelegate()
         delegate.on_mouse_pos_changed((-1, -1))
+
+        self.animate_scroll_show(show=False)
 
         return super().leaveEvent(e)
 
@@ -119,6 +146,10 @@ class ListView(QListView):
             self._scroll_animation.stop()
             last_value = scroll.value() #self._scroll_animation._next
 
+        self._scroll_ignore_value = True
+        self.scroll.setValue(new_value)
+        self._scroll_ignore_value = False
+
         self._scroll_animation = QPropertyAnimation(scroll, b"value")
         self._scroll_animation.setDuration(100)
         self._scroll_animation.setStartValue(last_value)
@@ -129,6 +160,27 @@ class ListView(QListView):
 
         #scroll.setValue(new_value)
         #return super().wheelEvent(e)
+
+    def animate_scroll_show(self, show=True, time=500):
+        if self._scroll_show_animation:
+            self._scroll_show_animation.stop()
+            self._scroll_show_animation.deleteLater()
+        # self._scroll_show_animation = QPropertyAnimation(self.scroll, b"windowOpacity")
+        # self._scroll_show_animation.setDuration(100)
+        # self._scroll_show_animation.setStartValue(1)
+        # self._scroll_show_animation.setEndValue(0)
+        # self._scroll_show_animation.start()
+
+        start, end = (0.0, 1.0) if show else (1.0, 0.0)
+
+        fade_effect = QGraphicsOpacityEffect(self.scroll)
+        self.scroll.setGraphicsEffect(fade_effect)
+        self._scroll_show_animation = animation = QPropertyAnimation(fade_effect, b"opacity")
+        animation.setEasingCurve(QEasingCurve.InOutQuad)
+        animation.setDuration(time)
+        animation.setStartValue(start)
+        animation.setEndValue(end)
+        animation.start()#QPropertyAnimation.DeleteWhenStopped)
 
     def clear_selection(self):
         self._current_selection = None
@@ -221,11 +273,14 @@ class ListDelegate(QItemDelegate):
 
         painter.setPen(QColor(220, 220, 220))
 
-        painter.drawLine(left + 50 + 16, bottom - 1, right-left, bottom - 1) # top + 68
+        self.draw_down_line(painter, left, bottom, right)
 
         main_draw_results = (time_string_left, self.list_model.getRightAdd())
 
         self.list_model.customDraw(painter, item, (left, top, right, bottom), main_draw_results)
+
+    def draw_down_line(self, painter, left, bottom, right):
+        painter.drawLine(left + 50 + 16, bottom - 1, right - left, bottom - 1)  # top + 68
 
     def _name_left_add(self):
         return 50 + 16
@@ -277,7 +332,7 @@ class ListDelegate(QItemDelegate):
     def drawMessage(self, painter: QPainter, item, left_top_right_bottom):
         left, top, right, bottom = left_top_right_bottom
 
-        painter.setPen(QColor(150, 150, 150))
+        painter.setPen(self.message_text_color())
 
         font = self.prepareMessageFont()
         painter.setFont(font)
@@ -292,6 +347,9 @@ class ListDelegate(QItemDelegate):
             _text = self.prepareMessageText(item, second_text, left_top_right_bottom)
 
             self.drawMessageText(painter, _text, left_top_right_bottom)
+
+    def message_text_color(self):
+        return QColor(150, 150, 150)
 
     def prepareMessageStartPosition(self, left, top):
         message_left = left + 50 + 16
@@ -730,7 +788,14 @@ class MessagesListDelegate(ListDelegate):
             to_new_lines = []
             for i, w_drawer in enumerate(line):
                 left_now += space_width
+
+                # word_width = 0
+                # for a in w_drawer:
+                #     a_width = drawer.metrics.boundingRect(0, 0, 9999, 9999, Qt.Horizontal, a).width()
+                #     word_width += a_width
+
                 #r = metrics.boundingRect(left_now, top_now, 9999, 9999, Qt.Horizontal, w)
+                #r_right = left_now + word_width #w_drawer.width
                 r_right = left_now + w_drawer.width
 
                 if r_right > right:
@@ -798,6 +863,12 @@ class MessagesListDelegate(ListDelegate):
                 w_left = a_left + 5
 
             top_now += line_height
+
+    def draw_down_line(self, painter, left, bottom, right):
+        pass
+
+    def message_text_color(self):
+        return QColor(30, 30, 30)
 
     def sizeHint(self, option, index):
         ret = super().sizeHint(option, index)

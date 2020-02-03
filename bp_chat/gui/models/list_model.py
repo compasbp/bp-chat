@@ -234,37 +234,33 @@ class ListDelegate(QItemDelegate):
 
         item = self.list_model.data(index)
 
+        need_draw_image_and_title = self.need_draw_image_and_title(item)
+
         self.fillRect(painter, item, index.row(), option)
 
-        self.drawRound(painter, item, left, top)
-
-        self.drawImage(painter, item, left, top)
-
-        self.drawStatus(painter, item, left, top)
+        if need_draw_image_and_title:
+            self.drawRound(painter, item, left, top)
+            self.drawImage(painter, item, left, top)
+            self.drawStatus(painter, item, left, top)
 
         self.drawMessage(painter, item, (left, top, right, bottom))
+
+        painter.setPen(QColor(150, 150, 150))
 
         time_string_left = -1
         time_string = self.list_model.getItemTimeString(item)
         if time_string:
-
+            font = self.prepareTimeFont()
+            painter.setFont(font)
             time_string_left = right - 6*len(time_string)-10 + self.list_model.getRightAdd()
-            painter.drawText(time_string_left, top + 28, time_string)
+            painter.drawText(time_string_left, self.time_top(top, bottom), time_string)
 
         pen, font = self.prepare_pen_and_font_for_name(painter, item)
         painter.setPen(pen)
         painter.setFont(font)
 
-        _name = self.list_model.getItemName(item)
-        _name_left = left + self._name_left_add()
-
-        if time_string_left >= 10:
-            brect = painter.boundingRect(QRectF(_name_left, 0, 9999, 50), _name)
-            if brect.right() >= time_string_left:
-                max_len = int((time_string_left - _name_left) / 10)
-                _name = _name[:max_len] + "..."
-
-        painter.drawText(_name_left, top + 28, _name)
+        if need_draw_image_and_title:
+            self.draw_name(painter, item, left, top, time_string_left)
 
         # draw badges
         badges_count = self.list_model.getItemBadgesCount(item)
@@ -279,11 +275,20 @@ class ListDelegate(QItemDelegate):
 
         self.list_model.customDraw(painter, item, (left, top, right, bottom), main_draw_results)
 
-    def draw_down_line(self, painter, left, bottom, right):
-        painter.drawLine(left + 50 + 16, bottom - 1, right - left, bottom - 1)  # top + 68
+    def draw_name(self, painter, item, left, top, time_string_left):
+        _name = self.list_model.getItemName(item)
+        _name_left = left + self._name_left_add()
 
-    def _name_left_add(self):
-        return 50 + 16
+        if time_string_left >= 10:
+            brect = painter.boundingRect(QRectF(_name_left, 0, 9999, 50), _name)
+            if brect.right() >= time_string_left:
+                max_len = int((time_string_left - _name_left) / 10)
+                _name = _name[:max_len] + "..."
+
+        painter.drawText(_name_left, self.title_top(top), _name)
+
+    def title_top(self, top):
+        return self.message_top(top) - 20
 
     def prepare_pen_and_font_for_name(self, painter: QPainter, item):
         pen = painter.pen()
@@ -301,7 +306,6 @@ class ListDelegate(QItemDelegate):
         font.setPixelSize(14)
         font.setBold(True)
         return font
-
 
     def prepare_base_left_top_right_bottom(self, option):
         return option.rect.left(), option.rect.top(), option.rect.right(), option.rect.bottom()
@@ -348,17 +352,50 @@ class ListDelegate(QItemDelegate):
 
             self.drawMessageText(painter, _text, left_top_right_bottom, item)
 
+    def message_font_size(self):
+        return 12
+
+    def time_font_size(self):
+        return 11
+
     def message_text_color(self):
         return QColor(150, 150, 150)
 
     def prepareMessageStartPosition(self, left, top):
         message_left = left + 50 + 16
-        message_top = top + 48
+        message_top = self.message_top(top)
         return message_left, message_top
+
+    def message_top(self, top):
+        return top + 48
+
+    def image_width(self):
+        return 50
+
+    def image_left_add(self):
+        return 0
+
+    def need_draw_image_and_title(self, item):
+        return True
+
+    def time_top(self, top, bottom):
+        return top + 28
+
+    def draw_down_line(self, painter, left, bottom, right):
+        painter.drawLine(left + 50 + 16, bottom - 1, right - left, bottom - 1)  # top + 68
+
+    def _name_left_add(self):
+        return 50 + 16
 
     def prepareMessageFont(self):
         font = QFont("Arial")
-        font.setPixelSize(12)
+        font.setPixelSize(self.message_font_size())
+        font.setBold(False)
+        return font
+
+    def prepareTimeFont(self):
+        font = QFont("Arial")
+        font.setPixelSize(self.time_font_size())
         font.setBold(False)
         return font
 
@@ -386,27 +423,31 @@ class ListDelegate(QItemDelegate):
     def drawRound(self, painter, item, left, top):
         round_color = self.color_from_item(item)
         if round_color:
+            iw = self.image_width()
+            ir = iw / 2
             painter.setPen(round_color)
             painter.setBrush(round_color)
-            painter.drawEllipse(QPointF(left + 25 + 8, top + 25 + 8), 25, 25)
+            painter.drawEllipse(QPointF(left + ir + 8 + self.image_left_add(), top + ir + 8), ir, ir)
 
     def drawImage(self, painter, item, left, top):
         _image_left_add = 0
+        iw = self.image_width()
+
         pixmap = self.list_model.getItemPixmap(item)
         is_simple_icon = False
         if type(pixmap) == str:
-            pixmap = pixmap_from_file(pixmap, 50, 50)
+            pixmap = pixmap_from_file(pixmap, iw, iw)
             is_simple_icon = True
         if pixmap:
             pixmap: QPixmap
             if is_simple_icon:
-                pixmap = pixmap.scaledToWidth(32, Qt.SmoothTransformation)
+                pixmap = pixmap.scaledToWidth(32/50*iw, Qt.SmoothTransformation)
             sz = pixmap.size()
             actual_size = (sz.width(), sz.height())
             #painter.drawImage(QPointF(left + 8 + _image_left_add, top + 8), pixmap.toImage())
-            self.icon_drawer.draw_pixmap(painter, pixmap, (left + 8, top + 8), size=(50, 50),
+            self.icon_drawer.draw_pixmap(painter, pixmap, (left + 8 + self.image_left_add(), top + 8), size=(iw, iw),
                     under_mouse=self._is_under_mouse(item),
-                    icon_size=(50, 50), actual_size=actual_size, alpha=1.0)
+                    icon_size=(iw, iw), actual_size=actual_size, alpha=1.0)
 
     def _is_under_mouse(self, item):
         return self._is_mouse_on_image(item)
@@ -490,9 +531,13 @@ class ListDelegate(QItemDelegate):
             _left = rect.left() + self._name_left_add()
             _right = min(rect.right(), _left + br.width())
 
+            title_top = self.title_top(rect.top()) - 16
+
             if self.calc_and_change_is_on_pos('_mouse_on_name', pos, item,
-                                              QRect(QPoint(_left-10, rect.top() + 16),
-                                                    QPoint(_right, rect.top() + 16 + 14))):
+                                              QRect(QPoint(_left-10, title_top #rect.top() + 16
+                                                           ),
+                                                    QPoint(_right, title_top + 14 #rect.top() + 16 + 14
+                                                           ))):
                 changed = True
 
         else:
@@ -563,6 +608,11 @@ class ListModel(QAbstractListModel):
     def items_dict(self, val):
         self._items_dict = val
         self._keys_list = sorted(list(val.keys()))
+        last = None
+        for k in self._keys_list:
+            m = val[k]
+            m.last_item = last
+            last = m
 
     @property
     def model_item(self):
@@ -757,9 +807,23 @@ class ChatsModel(ListModel):
 
 class MessagesListDelegate(ListDelegate):
 
+    # def prepareMessageStartPosition(self, left, top):
+    #     message_left = left + 50 + 16
+    #     message_top = top + 38
+    #     return message_left, message_top
+
     def prepare_base_left_top_right_bottom(self, option):
         ret = super().prepare_base_left_top_right_bottom(option)
         return ret
+
+    def image_width(self):
+        return 38
+
+    def image_left_add(self):
+        return 12
+
+    def message_top(self, top):
+        return top + 38
 
     def prepareMessageText(self, item, second_text, left_top_right_bottom):
         left, top, right, bottom = left_top_right_bottom
@@ -868,11 +932,23 @@ class MessagesListDelegate(ListDelegate):
 
             top_now += line_height
 
+    def need_draw_image_and_title(self, item):
+        item = item.item
+        if item.last_item and item.sender == item.last_item.sender:
+            return False
+        return True
+
     def draw_down_line(self, painter, left, bottom, right):
         pass
 
     def message_text_color(self):
-        return QColor(30, 30, 30)
+        return QColor(50, 50, 50)
+
+    def time_top(self, top, bottom):
+        return bottom
+
+    def message_font_size(self):
+        return 14
 
     def sizeHint(self, option, index):
         ret = super().sizeHint(option, index)

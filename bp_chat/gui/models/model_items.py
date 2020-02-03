@@ -24,6 +24,10 @@ class UserItem(ListModelItem, ColoredItem):
         self.user = user
         self.color = self.get_new_color()
 
+    @property
+    def item(self):
+        return self.user
+
     def getName(self):
         return self.user.name
 
@@ -48,6 +52,10 @@ class ChatItem(ListModelItem, ColoredItem):
     def __init__(self, chat):
         self.chat = chat
         self.color = self.get_new_color()
+
+    @property
+    def item(self):
+        return self.chat
 
     def getName(self):
         return self.chat.title
@@ -80,6 +88,10 @@ class MessageItem(ListModelItem):
 
     def __init__(self, message):
         self.message = message
+
+    @property
+    def item(self):
+        return self.message
 
     @property
     def sender_item(self) -> UserItem:

@@ -95,7 +95,10 @@ class MessageItem(ListModelItem):
 
     @property
     def sender_item(self) -> UserItem:
-        return item_from_object(self.message.sender, UserItem)
+        item = item_from_object(self.message.sender, UserItem)
+        if not item:
+            item = NullItem
+        return item
 
     def getName(self):
         return self.sender_item.getName()
@@ -138,3 +141,17 @@ class MessageItem(ListModelItem):
         return self.sender_item.getColor()
 
 
+# FIXME
+class NullItem:
+
+    @classmethod
+    def getName(cls):
+        return "Null"
+
+    @classmethod
+    def getPixmap(cls):
+        return None
+
+    @classmethod
+    def getColor(cls):
+        return "#ffffff"

@@ -6,10 +6,11 @@ from PyQt5.QtCore import (QAbstractListModel, QSize, QPointF, QPoint, QRectF, QR
                           QItemSelectionModel, QPropertyAnimation, QEasingCurve)
 
 from threading import Timer
+from copy import copy
 
 from bp_chat.gui.core.draw import draw_badges, get_round_mask, color_from_hex
 from .funcs import item_from_object
-from .drawers import MessageDrawer
+from .drawers import MessageDrawer, WordsLine, FileLine
 from ..core.draw import pixmap_from_file, icon_from_file, IconDrawer
 
 
@@ -20,9 +21,12 @@ class ListView(QListView):
     _scroll_animation = None
     _scroll_show_animation = None
     _scroll_ignore_value = False
+    _scroll_before_load_state = None
 
     def __init__(self, parent=None):
         super().__init__(parent)
+
+        self._after_scroll_range_change_actions = []
 
         self.setFrameShape(QFrame.NoFrame)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
@@ -39,6 +43,38 @@ class ListView(QListView):
         #self.scroll.setWindowOpacity(0)
         self.scroll.valueChanged.connect(self.on_scroll_changed)
         scroll.rangeChanged.connect(self.on_scroll_range_changed)
+
+    def scroll_to_bottom(self):
+        if self._scroll_to_bottom not in self._after_scroll_range_change_actions:
+            self._after_scroll_range_change_actions.append(self._scroll_to_bottom)
+
+        self.model().reset_model(action=self._scroll_to_bottom)
+
+    def _scroll_to_bottom(self):
+        maximum = self.verticalScrollBar().maximum()
+        print('_scroll_to_bottom', maximum, self.scroll.maximum())
+        self.scroll.setValue(self.scroll.maximum())
+
+    def scroll_to_state(self, value, maximum):
+        self._scroll_before_load_state = value, maximum
+        if self._scroll_to_bottom not in self._after_scroll_range_change_actions:
+            self._after_scroll_range_change_actions.append(self._scroll_to_state)
+        #self.model().reset_model(lambda: self._scroll_to_state(value, maximum))
+
+    def _scroll_to_state(self):
+        state = self._scroll_before_load_state
+        if not state:
+            return
+        value, maximum = state
+        self._scroll_before_load_state = None
+        scroll_maximum = self.scroll.maximum()
+        print('_scroll_to_state', self.scroll.value(), scroll_maximum, '<-', value, maximum)
+        # if maximum > scroll_maximum:
+        #     self.scroll.setMaximum(maximum)
+        if self.scroll.maximum() > maximum:
+            new_pos = value * self.scroll.maximum() / maximum
+            print('  -> ', new_pos)
+            self.scroll.setValue(new_pos)
 
     def showEvent(self, *args, **kwargs):
         ret = super().showEvent(*args, **kwargs)
@@ -64,7 +100,12 @@ class ListView(QListView):
         scroll.setValue(value)
 
     def on_scroll_range_changed(self, _min, _max):
+        print('on_scroll_range_changed', _min, _max, self.verticalScrollBar().maximum())
         self.scroll.setRange(_min, _max)
+        self._after_scroll_range_change_actions, actions = [], self._after_scroll_range_change_actions
+        for action in actions:
+            func = getattr(self, action) if type(action) == str else action
+            func()
 
     def resizeEvent(self, e):
         ret = super().resizeEvent(e)
@@ -244,6 +285,9 @@ class ListDelegate(QItemDelegate):
             self.drawStatus(painter, item, left, top)
 
         self.drawMessage(painter, item, (left, top, right, bottom))
+
+        if type(item.item) == LoadMessagesButton:
+            return
 
         painter.setPen(QColor(150, 150, 150))
 
@@ -513,7 +557,7 @@ class ListDelegate(QItemDelegate):
         if index:
             item = index.data()
 
-        if item:
+        if item and type(item.item) != LoadMessagesButton:
             if self.change_value('_mouse_on_item', item):
                 changed = True
 
@@ -575,7 +619,7 @@ class ListDelegate(QItemDelegate):
 
 class ListModel(QAbstractListModel):
 
-    _need_reset_signal = pyqtSignal()
+    _need_reset_signal = pyqtSignal(object)
     _need_reset_timer = None
 
     _items_dict: {str: object}
@@ -584,6 +628,8 @@ class ListModel(QAbstractListModel):
 
     def __init__(self, listView, items_dict=None, list_delegate_cls=ListDelegate):
         super().__init__()
+
+        self._reset_actions = []
 
         if not items_dict:
             items_dict = {}
@@ -606,13 +652,24 @@ class ListModel(QAbstractListModel):
 
     @items_dict.setter
     def items_dict(self, val):
+        # self._items_dict = val
+        # self._keys_list = sorted(list(val.keys()))
+
+        val, self._keys_list = self.set_items_dict(val)
         self._items_dict = val
-        self._keys_list = sorted(list(val.keys()))
+
         last = None
         for k in self._keys_list:
+            # if type(k) != int:
+            #     print(k, type(k))
+            if k < 0:
+                continue
             m = val[k]
             m.last_item = last
             last = m
+
+    def set_items_dict(self, val):
+        return val, sorted(list(val.keys()))
 
     @property
     def model_item(self):
@@ -712,17 +769,28 @@ class ListModel(QAbstractListModel):
     def make_menu(self, item):
         pass
 
-    def reset_model(self):
+    def reset_model(self, action='_reset_model_do_action'):
+        if action not in self._reset_actions:
+            self._reset_actions.append(action)
+
         if self._need_reset_timer:
             return
         self._need_reset_timer = Timer(0.1, self._reset_model)
         self._need_reset_timer.start()
 
     def _reset_model(self):
-        self._need_reset_signal.emit()
-        self._need_reset_timer = None
+        actions, self._reset_actions = self._reset_actions, []
+        for a in actions:
+            self._need_reset_signal.emit(a)
+            self._need_reset_timer = None
 
-    def _reset_model_do(self):
+    def _reset_model_do(self, action):
+        #actions, self._reset_actions = copy(self._reset_actions), []
+        func = getattr(self, action) if type(action) == str else action
+        func()
+
+    def _reset_model_do_action(self):
+        print('_reset_model_do_action')
         temp_indx = self.delegate.listView.selectedIndexes()
 
         self.beginResetModel()
@@ -811,6 +879,7 @@ class MessagesListDelegate(ListDelegate):
     #     message_left = left + 50 + 16
     #     message_top = top + 38
     #     return message_left, message_top
+    last_load_min_message_id = None
 
     def prepare_base_left_top_right_bottom(self, option):
         ret = super().prepare_base_left_top_right_bottom(option)
@@ -825,6 +894,10 @@ class MessagesListDelegate(ListDelegate):
     def message_top(self, top):
         return top + 38
 
+    def get_min_message_id(self):
+        lst = [k for k in self.list_model._keys_list if k >= 0]
+        return min(lst) if len(lst) > 0 else None
+
     def prepareMessageText(self, item, second_text, left_top_right_bottom):
         left, top, right, bottom = left_top_right_bottom
         right -= 10
@@ -833,14 +906,18 @@ class MessagesListDelegate(ListDelegate):
         if not drawer:
             drawer = MessageDrawer(item, self.prepareMessageFont(), second_text)
 
+        if isinstance(item.message, LoadMessagesButton):
+            return 30, item.message
+
         # font = drawer.font
         # metrics = QFontMetrics(font)
 
         #w_rect = metrics.boundingRect(0, 0, 9999, 9999, Qt.Horizontal, 'w')
         line_height = drawer.line_height #w_rect.height()
         space_width = drawer.w_width #w_rect.width()
+        message_height = 0
 
-        top_now = top - line_height
+        top_now = top #- line_height
         left_now = left - space_width
 
         lines = drawer.lines #second_text.split('\n')
@@ -848,7 +925,7 @@ class MessagesListDelegate(ListDelegate):
         max_width = 0
 
         for line in lines:
-            top_now += line_height
+            # top_now += line_height
 
             last_i = i = 0
             to_new_lines = []
@@ -858,7 +935,7 @@ class MessagesListDelegate(ListDelegate):
 
                 if r_right > right:
                     max_width = max(max_width, left_now-space_width)
-                    to_new_lines.append(line[last_i:i])
+                    to_new_lines.append(WordsLine(line[last_i:i]))
                     last_i = i
                     left_now = left + w_drawer.width
                     top_now += line_height
@@ -866,13 +943,28 @@ class MessagesListDelegate(ListDelegate):
                     left_now = r_right
 
             if len(to_new_lines) == 0:
-                to_new_lines.append(line)
+                to_new_lines.append(WordsLine(line))
+                top_now += line_height
             elif last_i < i:
-                to_new_lines.append(line[last_i:])
+                to_new_lines.append(WordsLine(line[last_i:]))
+                top_now += line_height
 
             new_lines += to_new_lines
 
-        return line_height, new_lines
+        message_height = (len(new_lines)) * line_height
+
+        file = item.message.file
+        has_file = file is not None and len(file) > 1
+        if has_file:
+            filename = item.message.getFileName()
+            file_line = FileLine(item.message.getFile(), filename, item.message.getFileSize(), drawer)
+            message_height += file_line.line_height
+
+            new_lines.insert(0, file_line)
+            if second_text == filename: # FIXME
+                new_lines = new_lines[:1]
+
+        return message_height, new_lines
 
     def drawMessageText(self, painter, line_height_and_lines, left_top_right_bottom, item):
         left, top, right, bottom = left_top_right_bottom
@@ -886,54 +978,34 @@ class MessagesListDelegate(ListDelegate):
             sel_start, sel_end = sel_end, sel_start
 
         drawer: MessageDrawer = item.drawer
-        space_width = drawer.w_width
-
-        max_width = 0
 
         top_now = top
-        for words in lines:
+        if hasattr(lines, 'draw'):
+            lines.draw(painter, left_top_right_bottom)
 
-            line_start = top_now - line_height
-            line_end = top_now
+            if type(lines) == LoadMessagesButton:
+                min_message_id = self.get_min_message_id()
+                if self.last_load_min_message_id != min_message_id:
+                    val, maximum = self.listView.verticalScrollBar().value(), self.listView.verticalScrollBar().maximum()
+                    self.listView.scroll.setValue(maximum)
+                    self.listView.scroll_to_state(val, maximum)
+                    self.last_load_min_message_id = min_message_id
+                    self.list_model.on_need_download_20(min_message_id)
 
-            select_start_in_this_line = select_end_in_this_line = select_start_upper = select_end_lower = False
-            if sel_start and sel_end:
-                select_start_in_this_line = line_start <= sel_start[1] <= line_end
-                select_end_in_this_line = line_start <= sel_end[1] <= line_end
-                select_start_upper = sel_start[1] <= line_start
-                select_end_lower = sel_end[1] >= line_end
+        else:
+            for words_line in lines:
 
-            w_left = left
-            for w in words:
+                line_height = words_line.line_height
+                bottom_now = top_now + line_height
 
-                a_left = a_right = w_left
-                for a in w:
-                    r = drawer.metrics.boundingRect(0, 0, 9999, 9999, Qt.Horizontal, a) #painter.boundingRect(QRectF(0, 0, 500, 500), a)
+                words_line.draw_line(drawer, painter, (left, top_now, right, bottom_now), sel_start, sel_end)
 
-                    a_right = a_left + r.width()
-
-                    if sel_start and sel_end:
-                        if (
-                                (select_start_upper and select_end_lower) or
-                                (select_start_in_this_line and select_end_in_this_line and a_left >= sel_start[0] and a_right <= sel_end[0]) or
-                                (select_start_in_this_line and not select_end_in_this_line and a_left >= sel_start[0]) or
-                                (not select_start_in_this_line and select_end_in_this_line and a_right <= sel_end[0])
-                        ):
-                            painter.fillRect(QRectF(QPointF(a_left, top_now - line_height), QPointF(a_right, top_now)),
-                                             QColor("#cccccc"))
-
-                    a_left += r.width()
-
-                max_width = max(max_width, a_left)
-
-                painter.drawText(w_left, top_now, w)
-                w_left = a_right + space_width
-
-
-            top_now += line_height
+                top_now = bottom_now
 
     def need_draw_image_and_title(self, item):
         item = item.item
+        if type(item) == LoadMessagesButton:
+            return False
         if item.last_item and item.sender == item.last_item.sender:
             return False
         return True
@@ -945,7 +1017,7 @@ class MessagesListDelegate(ListDelegate):
         return QColor(50, 50, 50)
 
     def time_top(self, top, bottom):
-        return bottom
+        return bottom - 10
 
     def message_font_size(self):
         return 14
@@ -975,6 +1047,9 @@ class MessagesListModel(ListModel):
     def __init__(self, listView):
         super().__init__(listView, list_delegate_cls=MessagesListDelegate)
 
+    def on_need_download_20(self, min_message_id):
+        pass
+
     def getItemHeight(self, item, option):
         right = option.rect.right()
         message_left, message_top = self.delegate.prepareMessageStartPosition(0, 0)
@@ -983,13 +1058,24 @@ class MessagesListModel(ListModel):
 
         second_text = self.getItemSecondText(item)
         if second_text:
-            line_height, new_lines = self.delegate.prepareMessageText(item, second_text, left_top_right_bottom)
-            h = (len(new_lines)) * line_height
+            message_height, new_lines = self.delegate.prepareMessageText(item, second_text, left_top_right_bottom)
+            #h = (len(new_lines)) * line_height
             h_top = message_top - option.rect.top()
-            h += h_top
+            h = message_height + h_top + 20
             return h
 
         return 70
+
+    def set_items_dict(self, val):
+        messages_dict = { int(k):v for k, v in val.items() }
+        keys_list = sorted(list(messages_dict.keys()), key=lambda key: (messages_dict[key].datetime, key))
+
+        if len(messages_dict) >= 20: # FIXME
+            messages_dict.keys()
+            messages_dict[-1] = LoadMessagesButton()
+            keys_list.insert(0, -1)
+
+        return messages_dict, keys_list
 
 
 class ListModelItem:
@@ -1024,3 +1110,19 @@ class CustomSelection:
 
     def __str__(self):
         return "{} {} - {}".format("A" if self.active else "D", self.start, self.end)
+
+
+class LoadMessagesButton:
+
+    text = "Load more messages"
+
+    def __init__(self, text=None):
+        if text is not None:
+            self.text = text
+
+    def draw(self, painter, left_top_right_bottom):
+        left, top, right, bottom = left_top_right_bottom
+        left, top, right, bottom = left-28, top-14, right-20, bottom-14
+
+        painter.drawText(QRect(QPoint(left, top), QPoint(right, bottom)), Qt.AlignCenter, self.text)
+        painter.drawRect(left+11, top+4, right-left-22, bottom-top-8)

@@ -62,6 +62,7 @@ class Message:
     chat: Chat
     text: str
     datetime: datetime
+    file = None
 
     def __init__(self, id, sender, chat, text, datetime):
         self._id = id

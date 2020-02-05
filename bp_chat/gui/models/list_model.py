@@ -7,6 +7,8 @@ from PyQt5.QtCore import (QAbstractListModel, QSize, QPointF, QPoint, QRectF, QR
 
 from threading import Timer
 from copy import copy
+from datetime import datetime
+from sys import platform
 
 from bp_chat.gui.core.draw import draw_badges, get_round_mask, color_from_hex
 from .funcs import item_from_object
@@ -55,26 +57,25 @@ class ListView(QListView):
         print('_scroll_to_bottom', maximum, self.scroll.maximum())
         self.scroll.setValue(self.scroll.maximum())
 
-    def scroll_to_state(self, value, maximum):
-        self._scroll_before_load_state = value, maximum
+    def scroll_to_state(self, maximum):
+        self._scroll_before_load_state = maximum
         if self._scroll_to_bottom not in self._after_scroll_range_change_actions:
             self._after_scroll_range_change_actions.append(self._scroll_to_state)
         #self.model().reset_model(lambda: self._scroll_to_state(value, maximum))
 
     def _scroll_to_state(self):
-        state = self._scroll_before_load_state
-        if not state:
+        maximum = self._scroll_before_load_state
+        if maximum == None:
             return
-        value, maximum = state
         self._scroll_before_load_state = None
         scroll_maximum = self.scroll.maximum()
-        print('_scroll_to_state', self.scroll.value(), scroll_maximum, '<-', value, maximum)
+        new_value = scroll_maximum - maximum
+        print('[ _scroll_to_state ] {}/{} -> {}/{}'.format(0, maximum, new_value, scroll_maximum))
         # if maximum > scroll_maximum:
         #     self.scroll.setMaximum(maximum)
         if self.scroll.maximum() > maximum:
-            new_pos = value * self.scroll.maximum() / maximum
-            print('  -> ', new_pos)
-            self.scroll.setValue(new_pos)
+            print('  -> ', new_value)
+            self.scroll.setValue(new_value)
 
     def showEvent(self, *args, **kwargs):
         ret = super().showEvent(*args, **kwargs)
@@ -176,12 +177,28 @@ class ListView(QListView):
         scroll: QScrollBar = self.verticalScrollBar()
         #print(dy, dya, scroll.value(), scroll.maximum())
         e.ignore()
+
         last_value = scroll.value()
-        new_value = last_value - int(round(dya/1))
+        new_value = last_value - int(round(dya / 1))
+
+        self.change_scroll_animated(new_value)
+
+        #scroll.setValue(new_value)
+        #return super().wheelEvent(e)
+
+    def change_scroll_animated(self, new_value):
+
+        scroll: QScrollBar = self.verticalScrollBar()
+
+        last_value = scroll.value()
         if new_value < 0:
             new_value = 0
         elif new_value > scroll.maximum():
             new_value = scroll.maximum()
+
+        if platform == 'darwin':
+            self.scroll.setValue(new_value)
+            return
 
         if self._scroll_animation:
             self._scroll_animation.stop()
@@ -199,8 +216,6 @@ class ListView(QListView):
 
         self._scroll_animation.start()
 
-        #scroll.setValue(new_value)
-        #return super().wheelEvent(e)
 
     def animate_scroll_show(self, show=True, time=500):
         if self._scroll_show_animation:
@@ -790,7 +805,7 @@ class ListModel(QAbstractListModel):
         func()
 
     def _reset_model_do_action(self):
-        print('_reset_model_do_action')
+        #print('_reset_model_do_action', datetime.now())
         temp_indx = self.delegate.listView.selectedIndexes()
 
         self.beginResetModel()
@@ -987,8 +1002,8 @@ class MessagesListDelegate(ListDelegate):
                 min_message_id = self.get_min_message_id()
                 if self.last_load_min_message_id != min_message_id:
                     val, maximum = self.listView.verticalScrollBar().value(), self.listView.verticalScrollBar().maximum()
-                    self.listView.scroll.setValue(maximum)
-                    self.listView.scroll_to_state(val, maximum)
+                    #self.listView.scroll.setValue(50)
+                    self.listView.scroll_to_state(maximum)
                     self.last_load_min_message_id = min_message_id
                     self.list_model.on_need_download_20(min_message_id)
 

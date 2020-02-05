@@ -92,6 +92,9 @@ class ListView(QListView):
         _new_selection = [ind.data() for ind in lst]
         if self._current_selection == _new_selection:
             return
+
+    def change_selection(self, _new_selection):
+        print('[SEL] {} -> {}'.format(self._current_selection, _new_selection))
         self._current_selection = _new_selection
         if self._selected_callback:
             self._selected_callback(_new_selection)
@@ -122,6 +125,7 @@ class ListView(QListView):
         delegate = self.itemDelegate()
 
         if e.button() == Qt.LeftButton:
+
             self._custom_selection.active = True
             self._custom_selection.start = (e.pos().x(), e.pos().y())
             self._custom_selection.end = None
@@ -150,6 +154,11 @@ class ListView(QListView):
 
         if e.button() == Qt.RightButton:
             self.open_menu_for_selected_item(e.globalPos())
+
+        elif e.button() == Qt.LeftButton:
+            _cur_selected = self.indexAt(e.pos())
+            _current_selection = [_cur_selected.data()] if _cur_selected.data() else []
+            self.change_selection(_current_selection)
 
         return super().mouseReleaseEvent(e)
 
@@ -259,6 +268,8 @@ class ListView(QListView):
 
 class ListDelegate(QItemDelegate):
 
+    COLOR_ITEM_CLEAN = "#ffffff"
+
     round_mask = None
     _mouse_pos = (-1, -1)
     _mouse_on_item = None
@@ -313,13 +324,13 @@ class ListDelegate(QItemDelegate):
 
         painter.setPen(QColor(150, 150, 150))
 
-        time_string_left = -1
-        time_string = self.list_model.getItemTimeString(item)
-        if time_string:
-            font = self.prepareTimeFont()
-            painter.setFont(font)
-            time_string_left = right - 6*len(time_string)-10 + self.list_model.getRightAdd()
-            painter.drawText(time_string_left, self.time_top(top, bottom), time_string)
+        time_string_left = self.draw_right_text(painter, item, (left, top, right, bottom))
+        # time_string = self.list_model.getItemTimeString(item)
+        # if time_string:
+        #     font = self.prepareTimeFont()
+        #     painter.setFont(font)
+        #     time_string_left = right - 6*len(time_string)-10 + self.list_model.getRightAdd()
+        #     painter.drawText(time_string_left, self.time_top(top, bottom), time_string)
 
         pen, font = self.prepare_pen_and_font_for_name(painter, item)
         painter.setPen(pen)
@@ -340,6 +351,18 @@ class ListDelegate(QItemDelegate):
         main_draw_results = (time_string_left, self.list_model.getRightAdd())
 
         self.list_model.customDraw(painter, item, (left, top, right, bottom), main_draw_results)
+
+    def draw_right_text(self, painter, item, left_top_right_bottom):
+        left, top, right, bottom = left_top_right_bottom
+
+        time_string_left = -1
+        time_string = self.list_model.getItemTimeString(item)
+        if time_string:
+            font = self.prepareTimeFont()
+            painter.setFont(font)
+            time_string_left = right - 6 * len(time_string) - 10 + self.list_model.getRightAdd()
+            painter.drawText(time_string_left, self.time_top(top, bottom), time_string)
+        return time_string_left
 
     def draw_name(self, painter, item, left, top, time_string_left):
         _name = self.list_model.getItemName(item)
@@ -377,27 +400,39 @@ class ListDelegate(QItemDelegate):
         return option.rect.left(), option.rect.top(), option.rect.right(), option.rect.bottom()
 
     def fillRect(self, painter, item, index_row, option):
-        background_color = QColor(255, 255, 255)
+        #background_color = QColor(255, 255, 255)
+
+        background_color = self.get_background_color(item)
 
         selected = False
         # current_item_id = self.list_model.getCurrentItemIndex()
         # if item and current_item_id != -1 and current_item_id == index_row:
         #     selected = True
-        rows = [ind.row() for ind in self.listView.selectedIndexes()]
+        # rows = [ind.row() for ind in self.listView.selectedIndexes()]
+        #
+        # selected = index_row in rows
+        #
+        # if selected:
+        #     background_color = QColor(235, 235, 235)
+        selected_items = self.listView._current_selection or []
 
-        selected = index_row in rows
-
-        if selected:
-            background_color = QColor(235, 235, 235)
+        if item in selected_items:
+            background_color = self.selected_color()
 
         # selected_item_id = self.list_model.getSelectedItemIndex()
         # if selected_item_id != -1 and selected_item_id == index_row:
         #     background_color = QColor(240, 240, 240)
 
-        if item and self.list_model.selected_item == item:
+        if item and self.list_model.selected_item == item: # FIXME not using this!
             background_color = QColor(240, 240, 240)
 
         painter.fillRect(option.rect.adjusted(1, 1, -1, -1), background_color)  # Qt.SolidPattern)
+
+    def selected_color(self):
+        return QColor(235, 235, 235)
+
+    def get_background_color(self, current_item):
+        return color_from_hex(self.COLOR_ITEM_CLEAN)
 
     def drawMessage(self, painter: QPainter, item, left_top_right_bottom):
         left, top, right, bottom = left_top_right_bottom
@@ -721,34 +756,16 @@ class ListModel(QAbstractListModel):
         return 1
 
     def data(self, index, role=None):
-        key = self._keys_list[index.row()]
+        _row = index.row()
+        if _row < 0 or _row >= len(self._keys_list):
+            return None
+        key = self._keys_list[_row]
         item_pre = self.items_dict[key]
         item = item_from_object(item_pre, self.model_item)
         return item
 
-    # def updateDraws(self):
-    #     if self._updateDraws__Timer:
-    #         self._updateDraws__Timer.cancel()
-    #     self._updateDraws__Timer = Timer(0.1, self._updateDraws__Start)
-    #     self._updateDraws__Timer.start()
-    #
-    # def _updateDraws__Start(self):
-    #     self._updateDraws__Signal.emit()
-    #
-    # def _updateDraws__Slot(self):
-    #     self.prepareItems()
-    #     self.beginResetModel()
-    #     self.endResetModel()
-    #
-    # def prepareItems(self):
-    #     if not self._auto_update_items:
-    #         return
-    #
-    #     self.items_list = self._items_list
-    #     if self.filter:
-    #         self.items_list = self.filter(self.items_list)
-    #     if self.sorter:
-    #         self.items_list = self.sorter(self.items_list)
+    def get_current_user_id(self):
+        return None
 
     def getCurrentItemIndex(self):
         return -1
@@ -898,6 +915,9 @@ class ChatsModel(ListModel):
 
 class MessagesListDelegate(ListDelegate):
 
+    COLOR_MY_MESSAGE = "#eeeeee"
+    COLOR_MESSAGE_NOT_READED = "#fae0c6"
+
     # def prepareMessageStartPosition(self, left, top):
     #     message_left = left + 50 + 16
     #     message_top = top + 38
@@ -1025,6 +1045,34 @@ class MessagesListDelegate(ListDelegate):
 
                 top_now = bottom_now
 
+    def get_background_color(self, current_item):
+
+        message = current_item.message
+
+        background_color = self.COLOR_ITEM_CLEAN
+        current_user_id = self.list_model.get_current_user_id()
+
+        if current_user_id == message.sender_id:
+            background_color = self.COLOR_MY_MESSAGE
+
+        elif not message.getDelivered():
+            background_color = self.COLOR_MESSAGE_NOT_READED
+            self.list_model.add_to_delivered_by_gui(message.mes_id)
+
+        return color_from_hex(background_color)
+
+    def get_delivered_icon(self, message):
+        delivered_icon = None
+        current_user_id = self.list_model.get_current_user_id()
+
+        if current_user_id == message.sender_id:
+            delivered_icon = icon_from_file("check")
+
+            if message.getDelivered():
+                delivered_icon = icon_from_file("check_all")
+
+        return delivered_icon
+
     def need_draw_image_and_title(self, item):
         item = item.item
         if type(item) == LoadMessagesButton:
@@ -1032,6 +1080,47 @@ class MessagesListDelegate(ListDelegate):
         if item.last_item and item.sender == item.last_item.sender:
             return False
         return True
+
+    def draw_right_text(self, painter, message, left_top_right_bottom):
+        left, top, right, bottom = left_top_right_bottom
+
+        # right bottom text with date and delivered
+        # painter.setPen(QColor(self.INFO_COLOR))
+        # font = self.simple_font
+        # font.setBold(False)
+        # font.setPixelSize(12)
+        # painter.setFont(font)
+        font = painter.font()
+        font_h = QFontMetrics(font).height()
+
+        message = message.message
+
+        delivered_icon = self.get_delivered_icon(message)
+
+        padding_x = 5
+        padding_y = 5
+
+        # render icon delivered
+        if delivered_icon is not None:
+            icon_pixmap = delivered_icon.pixmap(QSize(QFontMetrics(font).height(), QFontMetrics(font).height()))
+            painter.drawImage(QPointF(right - (QFontMetrics(font).height() + padding_x), #+ self.listView.width_add,
+                                      bottom - font_h - padding_y), icon_pixmap.toImage())  # FIXME 5...
+
+        date_text = "{}".format(message.getTimeString())
+        date_text_width = QFontMetrics(font).width(date_text)
+
+
+        _top_left = QPoint(
+            right - (date_text_width + padding_x + 5 + QFontMetrics(font).height()), #+ self.listView.width_add,
+            bottom - font_h - padding_y)
+        dateTextRect = QRect(_top_left, QSize(date_text_width, QFontMetrics(font).height()))
+
+        painter.drawText(dateTextRect, Qt.AlignLeft, date_text)
+
+        # painter.drawLine(left, bottom - font_h - self.padding_y, right, bottom - font_h - self.padding_y)
+        # painter.drawLine(left, bottom, right, bottom)
+
+        return right
 
     def draw_down_line(self, painter, left, bottom, right):
         pass
@@ -1060,6 +1149,9 @@ class MessagesListDelegate(ListDelegate):
         if self._is_mouse_on_name(item) or self._is_mouse_on_image(item):
             font.setUnderline(True)
         return pen, font
+
+    def selected_color(self):
+        return color_from_hex('#fae298')
 
 
 class MessagesListModel(ListModel):
@@ -1098,6 +1190,9 @@ class MessagesListModel(ListModel):
         return messages_dict, keys_list
 
     def make_menu(self, message_item):
+        pass
+
+    def add_to_delivered_by_gui(self, mes_id):
         pass
 
 

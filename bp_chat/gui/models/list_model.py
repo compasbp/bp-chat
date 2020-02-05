@@ -19,7 +19,6 @@ from ..core.draw import pixmap_from_file, icon_from_file, IconDrawer
 class ListView(QListView):
 
     _selected_callback = None
-    _current_selection = None
     _scroll_animation = None
     _scroll_show_animation = None
     _scroll_ignore_value = False
@@ -29,6 +28,7 @@ class ListView(QListView):
         super().__init__(parent)
 
         self._after_scroll_range_change_actions = []
+        self._current_selection = []
 
         self.setFrameShape(QFrame.NoFrame)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
@@ -40,6 +40,7 @@ class ListView(QListView):
         self.setMouseTracking(True)
 
         self._custom_selection = CustomSelection()
+        self._scroll_last_value = 0
 
         self.scroll = QScrollBar(self)
         #self.scroll.setWindowOpacity(0)
@@ -106,6 +107,20 @@ class ListView(QListView):
         scroll: QScrollBar = self.verticalScrollBar()
         scroll.setValue(value)
 
+        last_scroll = self._scroll_last_value
+        d = value - last_scroll
+
+        custom_selection: CustomSelection = self._custom_selection
+        sel_start = custom_selection.start
+        sel_end = custom_selection.end
+
+        if sel_start:
+            custom_selection.start = (sel_start[0], sel_start[1] - d)
+        if sel_end:
+            custom_selection.end = (sel_end[0], sel_end[1] - d)
+
+        self._scroll_last_value = value
+
     def on_scroll_range_changed(self, _min, _max):
         print('on_scroll_range_changed', _min, _max, self.verticalScrollBar().maximum())
         self.scroll.setRange(_min, _max)
@@ -126,13 +141,24 @@ class ListView(QListView):
 
         if e.button() == Qt.LeftButton:
 
-            self._custom_selection.active = True
-            self._custom_selection.start = (e.pos().x(), e.pos().y())
-            self._custom_selection.end = None
+            mody = self.e_mody(e)
+            print('[mody]', mody, mody == Qt.ControlModifier)
+            if mody != Qt.ControlModifier:
+                self._current_selection = []
 
-            delegate.on_custom_selection_changed(self._custom_selection)
+                self._custom_selection.active = True
+                self._custom_selection.start = (e.pos().x(), e.pos().y())
+                self._custom_selection.end = None
+
+                delegate.on_custom_selection_changed(self._custom_selection)
 
         return super().mousePressEvent(e)
+
+    def e_mody(self, e):
+        try:
+            return int(e.modifiers())
+        except:
+            return 0
 
     def mouseMoveEvent(self, e):
 
@@ -150,14 +176,31 @@ class ListView(QListView):
 
     def mouseReleaseEvent(self, e):
 
+        was_custom_active = self._custom_selection.active
         self._custom_selection.active = False
+        delegate = self.itemDelegate()
 
         if e.button() == Qt.RightButton:
             self.open_menu_for_selected_item(e.globalPos())
 
         elif e.button() == Qt.LeftButton:
-            _cur_selected = self.indexAt(e.pos())
-            _current_selection = [_cur_selected.data()] if _cur_selected.data() else []
+            mody = self.e_mody(e)
+            _cur_selected = self.indexAt(e.pos()).data()
+            _current_selection = self._current_selection
+
+            if _cur_selected:
+                if _cur_selected in _current_selection:
+                    if mody == Qt.ControlModifier:
+                        _current_selection.remove(_cur_selected)
+                else:
+                    _current_selection.append(_cur_selected)
+
+            #if was_custom_active:
+            if mody == Qt.ControlModifier and self._custom_selection.end != None:
+                print('!!!!!!!!')
+                self._custom_selection.end = None
+                delegate.on_custom_selection_changed(self._custom_selection)
+
             self.change_selection(_current_selection)
 
         return super().mouseReleaseEvent(e)
@@ -251,7 +294,7 @@ class ListView(QListView):
         animation.start()#QPropertyAnimation.DeleteWhenStopped)
 
     def clear_selection(self):
-        self._current_selection = None
+        self._current_selection = []
         self.clearSelection()
 
     def open_menu_for_selected_item(self, global_pos):
@@ -417,7 +460,9 @@ class ListDelegate(QItemDelegate):
         selected_items = self.listView._current_selection or []
 
         if item in selected_items:
-            background_color = self.selected_color()
+            _background_color = self.selected_color(selected_items)
+            if _background_color:
+                background_color = _background_color
 
         # selected_item_id = self.list_model.getSelectedItemIndex()
         # if selected_item_id != -1 and selected_item_id == index_row:
@@ -426,9 +471,10 @@ class ListDelegate(QItemDelegate):
         if item and self.list_model.selected_item == item: # FIXME not using this!
             background_color = QColor(240, 240, 240)
 
-        painter.fillRect(option.rect.adjusted(1, 1, -1, -1), background_color)  # Qt.SolidPattern)
+        # option.rect.adjusted(1, 1, -1, -1)
+        painter.fillRect(option.rect, background_color)  # Qt.SolidPattern)
 
-    def selected_color(self):
+    def selected_color(self, selected_items):
         return QColor(235, 235, 235)
 
     def get_background_color(self, current_item):
@@ -1036,28 +1082,56 @@ class MessagesListDelegate(ListDelegate):
                     self.list_model.on_need_download_20(min_message_id)
 
         else:
-            for words_line in lines:
+            selected_text = None
+            selected_lines = []
+            last_selected_line_i = -1
+
+            for i, words_line in enumerate(lines):
 
                 line_height = words_line.line_height
                 bottom_now = top_now + line_height
 
-                words_line.draw_line(drawer, painter, (left, top_now, right, bottom_now), sel_start, sel_end)
+                selected_line = words_line.draw_line(drawer, painter, (left, top_now, right, bottom_now), sel_start, sel_end)
+                if selected_line != None:
+                    if last_selected_line_i >= 0:
+                        ln = i - last_selected_line_i - 1
+                        if ln > 0:
+                            selected_lines += [''] * ln
+
+                    selected_lines.append(selected_line)
+                    last_selected_line_i = i
 
                 top_now = bottom_now
+
+            _current_selection = self.listView._current_selection
+            if len(selected_lines) > 0:
+                selected_text = '\n'.join(selected_lines)
+                #print('.... {}'.format(selected_text))
+                if drawer.message not in _current_selection:
+                    _current_selection.append(drawer.message)
+
+            else:
+                custom_selection: CustomSelection = self.listView._custom_selection
+                if custom_selection.active and drawer.message in _current_selection:
+                    _current_selection.remove(drawer.message)
+
+            drawer.message.message.set_selected_text(selected_text)
 
     def get_background_color(self, current_item):
 
         message = current_item.message
-
         background_color = self.COLOR_ITEM_CLEAN
-        current_user_id = self.list_model.get_current_user_id()
 
-        if current_user_id == message.sender_id:
-            background_color = self.COLOR_MY_MESSAGE
+        if type(message) != LoadMessagesButton:
 
-        elif not message.getDelivered():
-            background_color = self.COLOR_MESSAGE_NOT_READED
-            self.list_model.add_to_delivered_by_gui(message.mes_id)
+            current_user_id = self.list_model.get_current_user_id()
+
+            if current_user_id == message.sender_id:
+                background_color = self.COLOR_MY_MESSAGE
+
+            elif not message.getDelivered():
+                background_color = self.COLOR_MESSAGE_NOT_READED
+                self.list_model.add_to_delivered_by_gui(message.mes_id)
 
         return color_from_hex(background_color)
 
@@ -1150,7 +1224,9 @@ class MessagesListDelegate(ListDelegate):
             font.setUnderline(True)
         return pen, font
 
-    def selected_color(self):
+    def selected_color(self, selected_items):
+        if len(selected_items) == 1:
+            return
         return color_from_hex('#fae298')
 
 

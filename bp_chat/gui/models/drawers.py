@@ -72,11 +72,14 @@ class WordsLine(LineBase, list):
             select_start_upper = sel_start[1] <= line_start
             select_end_lower = sel_end[1] >= line_end
 
+        selected_words = []
+
         w_left = left
         for w in self:
 
             a_left = w_left
             a_right = a_left
+            selected_aa = []
             for a in w:
                 r = mes_drawer.metrics.boundingRect(0, 0, 9999, 9999, Qt.Horizontal,
                                                 a)  # painter.boundingRect(QRectF(0, 0, 500, 500), a)
@@ -93,13 +96,20 @@ class WordsLine(LineBase, list):
                     ):
                         painter.fillRect(QRectF(QPointF(a_left, top_now - line_height), QPointF(a_right, top_now)),
                                          QColor("#cccccc"))
+                        selected_aa.append(a)
 
                 a_left += r.width()
+
+            if len(selected_aa) > 0:
+                selected_words.append(''.join(selected_aa))
 
             #max_width = max(max_width, a_left)
 
             painter.drawText(w_left, top_now, w)
             w_left = a_right + space_width
+
+        if len(selected_words) > 0:
+            return ' '.join(selected_words) # FIXME
 
 
 

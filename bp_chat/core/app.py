@@ -23,6 +23,7 @@ class App:
 
     __instance = None
     __instance_count = 0
+    _main_widget = None
     console = None
 
     @staticmethod
@@ -36,6 +37,14 @@ class App:
         self.__instance_id = instance_id
         self.console = ConsoleThread.instance(True, instance_id)
         ActionsQueue.instance(True, instance_id)
+
+    @property
+    def main_widget(self):
+        return self._main_widget
+
+    @main_widget.setter
+    def main_widget(self, value):
+        self._main_widget = value
 
     def close(self):
         console = ConsoleThread.stop()

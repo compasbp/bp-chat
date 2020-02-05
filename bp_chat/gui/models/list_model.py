@@ -86,7 +86,10 @@ class ListView(QListView):
         self._selected_callback = callback
 
     def selectionChanged(self, selectedSelection, deselectedSelection):
-        _new_selection = [ind.data() for ind in selectedSelection.indexes()]
+        lst = selectedSelection.indexes()
+        if len(lst) > 0 and len(self.model()._keys_list) == 0:
+            lst = []
+        _new_selection = [ind.data() for ind in lst]
         if self._current_selection == _new_selection:
             return
         self._current_selection = _new_selection
@@ -243,8 +246,12 @@ class ListView(QListView):
         self.clearSelection()
 
     def open_menu_for_selected_item(self, global_pos):
-        chat = self._current_selection[0] if self._current_selection else None
-        menu = self.model().make_menu(chat) if chat else None
+        item = self._current_selection[0] if self._current_selection else None
+        if not item:
+            ind = self.indexAt(self.mapFromGlobal(global_pos))
+            item = ind.data()
+            print('[ open_menu_for_selected_item ] {}'.format(item))
+        menu = self.model().make_menu(item) if item else None
         if menu:
             menu.exec_(global_pos)
 
@@ -651,6 +658,7 @@ class ListModel(QAbstractListModel):
         self.items_dict = items_dict
 
         self.delegate = list_delegate_cls(listView, self)
+        self.listView = listView
 
         self.selected_item = None
         self.filter = None
@@ -1044,9 +1052,6 @@ class MessagesListDelegate(ListDelegate):
     def on_custom_selection_changed(self, custom_selection):
         self.list_model.reset_model()
 
-    def make_menu(self):
-        pass
-
     def _is_under_mouse(self, item):
         return self._is_mouse_on_image(item) or self._is_mouse_on_name(item)
 
@@ -1091,6 +1096,9 @@ class MessagesListModel(ListModel):
             keys_list.insert(0, -1)
 
         return messages_dict, keys_list
+
+    def make_menu(self, message_item):
+        pass
 
 
 class ListModelItem:

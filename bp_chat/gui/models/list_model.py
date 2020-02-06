@@ -12,7 +12,7 @@ from sys import platform
 
 from bp_chat.gui.core.draw import draw_badges, get_round_mask, color_from_hex
 from .funcs import item_from_object
-from .drawers import MessageDrawer, WordsLine, FileLine
+from .drawers import MessageDrawer, WordsLine, FileLine, QuoteAuthor, QuoteLine, QuoteFile
 from ..core.draw import pixmap_from_file, icon_from_file, IconDrawer
 
 
@@ -71,11 +71,11 @@ class ListView(QListView):
         self._scroll_before_load_state = None
         scroll_maximum = self.scroll.maximum()
         new_value = scroll_maximum - maximum
-        print('[ _scroll_to_state ] {}/{} -> {}/{}'.format(0, maximum, new_value, scroll_maximum))
+        #print('[ _scroll_to_state ] {}/{} -> {}/{}'.format(0, maximum, new_value, scroll_maximum))
         # if maximum > scroll_maximum:
         #     self.scroll.setMaximum(maximum)
         if self.scroll.maximum() > maximum:
-            print('  -> ', new_value)
+            #print('  -> ', new_value)
             self.scroll.setValue(new_value)
 
     def showEvent(self, *args, **kwargs):
@@ -107,6 +107,9 @@ class ListView(QListView):
         scroll: QScrollBar = self.verticalScrollBar()
         scroll.setValue(value)
 
+        self.move_custom_selection_for_scroll(value)
+
+    def move_custom_selection_for_scroll(self, value):
         last_scroll = self._scroll_last_value
         d = value - last_scroll
 
@@ -267,9 +270,11 @@ class ListView(QListView):
         self._scroll_animation.setDuration(100)
         self._scroll_animation.setStartValue(last_value)
         self._scroll_animation.setEndValue(new_value)
-        self._scroll_animation._next = new_value
+        #self._scroll_animation._next = new_value
 
         self._scroll_animation.start()
+
+        self.move_custom_selection_for_scroll(new_value)
 
 
     def animate_scroll_show(self, show=True, time=500):
@@ -993,7 +998,7 @@ class MessagesListDelegate(ListDelegate):
 
         drawer = getattr(item, 'drawer', None)
         if not drawer:
-            drawer = MessageDrawer(item, self.prepareMessageFont(), second_text)
+            drawer = MessageDrawer(item, self.prepareMessageFont(), second_text, self)
 
         if isinstance(item.message, LoadMessagesButton):
             return 30, item.message
@@ -1039,6 +1044,28 @@ class MessagesListDelegate(ListDelegate):
                 top_now += line_height
 
             new_lines += to_new_lines
+
+        quote = item.message.quote
+        if quote:
+            _quote_text = item.message.get_quote_text()
+            if not _quote_text:
+                _quote_text = ''
+            _quote_lines = [QuoteLine(drawer.split_line(line), quote, drawer)
+                                            for line in _quote_text.split('\n')]
+            _quote_author = [QuoteAuthor(quote, drawer)]
+
+            quote_filename = item.message.getFileName()
+            quote_file = item.message.getFile()
+            quote_file_size = item.message.getFileSize()
+            _quote_file = []
+            if quote_file and quote_file not in (0, '0'):
+                # print(f'quote_filename: {quote_filename} quote_file: {quote_file} quote_file_size: {quote_file_size}')
+                _quote_file.append(QuoteFile(quote_file, quote_filename, quote_file_size, drawer))
+
+            if len(_quote_lines) > 0:
+                _quote_lines[-1].is_last_quote_line = True
+
+            new_lines = _quote_author + _quote_file + _quote_lines + new_lines
 
         message_height = (len(new_lines)) * line_height
 

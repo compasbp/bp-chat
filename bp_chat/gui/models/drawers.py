@@ -1,12 +1,17 @@
 from os.path import exists, join, expanduser
+from copy import copy
 
 from PyQt5.QtGui import QFontMetrics, QPainter, QColor, QIcon, QFont, QPen
 from PyQt5.QtCore import Qt, QRectF, QPointF, QSize, QRect, QPoint
 
 from ..core.draw import icon_from_file
 from bp_chat.core.files_map import getDownloadsFilePath, FilesMap
+from ...logic.data import QuoteInfo
+
 
 WORD_TYPE_SIMPLE = 0
+WORD_TYPE_LINK = 1
+
 LINE_TYPE_BASE = -1
 LINE_TYPE_FILE = 100
 
@@ -20,10 +25,11 @@ class MessageDrawer:
     TEXT_WHITE_COLOR = '#FFFFFF'
     INFO_COLOR = '#808080'
 
-    def __init__(self, message, font, text):
+    def __init__(self, message, font, text, delegate):
         self.message = message
         self._font = font
         message.drawer = self
+        self.delegate = delegate
 
         self.metrics = QFontMetrics(font)
         w_rect = self.metrics.boundingRect(0, 0, 9999, 9999, Qt.Horizontal, 'w')
@@ -41,6 +47,34 @@ class MessageDrawer:
     def font(self):
         return self._font
 
+    def split_line(self, line):
+        _words = line.split(' ')
+        new_words = []
+        for w in _words:
+            if type(w) == int:
+                continue
+
+            w, link = self.get_link_from_word(w)
+            if link:
+                w = LinkWordDrawer(w, self, link)
+            else:
+                w = WordDrawer(w, self)
+
+            new_words.append(w)
+        return new_words
+
+    @staticmethod
+    def get_link_from_word(word):
+        link = None
+        if word.startswith('https://') or word.startswith('http://'):
+            link = word
+        elif word.startswith('#'):
+            if word.startswith('#INPUT_CALL:'):
+                _from = word[len('#INPUT_CALL:'):]
+                link = word
+                word = 'Входящий звонок от ' + _from
+        return word, link
+
 
 class LineBase:
     line_type = LINE_TYPE_BASE
@@ -48,10 +82,18 @@ class LineBase:
 
 class WordsLine(LineBase, list):
 
+    first_word_left = 0
+    _line_height = 14
+    font_height = 14
+
     def __init__(self, lst, line_height=14):
         list.__init__(self, lst)
 
-        self.line_height = line_height
+        self._line_height = line_height
+
+    @property
+    def line_height(self):
+        return self._line_height
 
     # def get_size(self, font_height):
     #     return (0, font_height)
@@ -59,6 +101,7 @@ class WordsLine(LineBase, list):
     def draw_line(self, mes_drawer, painter, left_top_right_bottom, sel_start, sel_end):
 
         left, top_now, right, bottom_now = left_top_right_bottom
+        left += self.first_word_left
 
         space_width = mes_drawer.w_width
         line_height = self.line_height
@@ -94,7 +137,7 @@ class WordsLine(LineBase, list):
                             (select_start_in_this_line and not select_end_in_this_line and a_left >= sel_start[0]) or
                             (not select_start_in_this_line and select_end_in_this_line and a_right <= sel_end[0])
                     ):
-                        painter.fillRect(QRectF(QPointF(a_left, top_now - line_height), QPointF(a_right, top_now)),
+                        painter.fillRect(QRectF(QPointF(a_left, top_now - self.font_height+2), QPointF(a_right, top_now+2)),
                                          QColor("#cccccc"))
                         selected_aa.append(a)
 
@@ -246,6 +289,117 @@ class FileLine(LineBase):
         painter.drawText(fileSizeRect, Qt.TextWordWrap, file_size)
 
 
+class QuoteDrawAdd:
+
+    def draw_left_line(self, painter: QPainter, left, top, bottom):
+        painter.setPen(QPen(QColor(self.message_drawer.RESEND_COLOR), 3))
+        #left = left - self.first_word_left
+        lh = self.line_height
+        painter.drawLine(left, top-lh+1, left, bottom-lh-1)
+
+
+class QuoteAuthor(LineBase, QuoteDrawAdd):
+
+    first_word_left = 10
+    # line_height = 8
+    margin_first_top = 4
+
+    def __init__(self, quote: QuoteInfo, message_drawer):
+        self.quote = quote
+        self.message_drawer = message_drawer
+
+    @property
+    def first_word_left(self):
+        sender = self.quote.getSenderName()
+        if not sender or len(sender) == 0:
+            return 0
+        return 10
+
+    @property
+    def line_height(self):
+        sender = self.quote.getSenderName()
+        h = 14
+        if not sender or len(sender) == 0:
+            h = 0
+        #print('>>> [ QUOUTE sender ] {} = {}'.format(sender, h))
+        return h
+
+    def get_size(self, font_height):
+        sender = self.quote.getSenderName()
+        if not sender or len(sender) == 0:
+            return 0, 0
+        return 0, font_height
+
+    #def draw(self, painter: QPainter, text_rect, font_height, mouse_pos):
+    def draw_line(self, mes_drawer, painter, left_top_right_bottom, sel_start, sel_end):
+        left, top, right, bottom = left_top_right_bottom
+
+        temp_pen = painter.pen()
+        temp_font = painter.font()
+
+        self.draw_left_line(painter, left, top, bottom)
+
+        painter.setPen(QPen(QColor(self.message_drawer.RESEND_COLOR)))
+        font = QFont()
+        font.setBold(True)
+        painter.setFont(font)
+        fm = QFontMetrics(font)
+        font_h = fm.height()
+        font_height = - self.line_height + font_h #font_h
+
+        painter.drawText(left + self.first_word_left, top + font_height - 2, self.quote.getSenderName())
+
+        painter.setPen(temp_pen)
+        painter.setFont(temp_font)
+
+
+class QuoteLine(WordsLine, QuoteDrawAdd):
+
+    first_word_left = 10
+    #line_height = 14
+    # padding_first_top = 10
+    #margin_last_bottom = 10
+    is_last_quote_line = False
+
+    def __init__(self, lst, quote: QuoteInfo, message_drawer):
+        self.quote = quote
+        self.message_drawer = message_drawer
+        super().__init__(lst)
+
+    @property
+    def line_height(self):
+        return (10 + self._line_height) if self.is_last_quote_line else self._line_height
+
+    # def draw_line(self, mes_drawer, painter: QPainter, delegate,
+    #               message, word_num: int, x: int, y: int, y_start: int,
+    #               mouse_pos, selection, selection_sorted,
+    #               font_width, letter_width: float, temp_pen, last_w_drawn):
+    def draw_line(self, mes_drawer, painter, left_top_right_bottom, sel_start, sel_end):
+        left, top, right, bottom = left_top_right_bottom
+        temp_pen = painter.pen()
+        temp_font = painter.font()
+
+        self.draw_left_line(painter, left, top, bottom)
+
+        # font = temp_pen
+        # font.setPixelSize(self.line_height)
+        # painter.setFont(font)
+
+        pen = QPen(QColor(mes_drawer.INFO_COLOR))
+        painter.setPen(pen)
+
+        ret = super().draw_line(mes_drawer, painter, left_top_right_bottom, sel_start, sel_end)
+
+        painter.setPen(temp_pen)
+        #painter.setFont(temp_font)
+        return ret
+
+
+class QuoteFile(FileLine):
+
+    first_word_left = 10
+
+
 class WordDrawer(str):
 
     @staticmethod
@@ -258,4 +412,23 @@ class WordDrawer(str):
             a_w = message_drawer.metrics.boundingRect(0, 0, 9999, 9999, Qt.Horizontal, a).width()
             w += a_w
         obj.width = w
+        return obj
+
+
+#
+# class Word(str):
+#
+#     @staticmethod
+#     def __new__(cls, word: str, word_type: int = WORD_TYPE_SIMPLE):
+#         obj = str.__new__(cls, word)
+#         obj.word_type = word_type
+#         return obj
+
+
+class LinkWordDrawer(WordDrawer):
+
+    @staticmethod
+    def __new__(cls, word: str, message_drawer, url: str):
+        obj = WordDrawer.__new__(cls, word=word, message_drawer=message_drawer, word_type=WORD_TYPE_LINK)
+        obj.url = url
         return obj

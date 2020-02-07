@@ -8,12 +8,16 @@ from PyQt5.QtCore import (QAbstractListModel, QSize, QPointF, QPoint, QRectF, QR
 from threading import Timer
 from copy import copy
 from datetime import datetime
+from os.path import exists
 from sys import platform
 
 from bp_chat.gui.core.draw import draw_badges, get_round_mask, color_from_hex
 from .funcs import item_from_object
-from .drawers import MessageDrawer, WordsLine, FileLine, QuoteAuthor, QuoteLine, QuoteFile, WORD_TYPE_LINK
+from .drawers import (MessageDrawer, WordsLine, FileLine, QuoteAuthor, QuoteLine, QuoteFile, WORD_TYPE_LINK,
+                        LINE_TYPE_FILE)
 from ..core.draw import pixmap_from_file, icon_from_file, IconDrawer
+from bp_chat.core.files_map import getDownloadsFilePath, FilesMap
+
 
 
 class ListView(QListView):
@@ -23,6 +27,7 @@ class ListView(QListView):
     _scroll_show_animation = None
     _scroll_ignore_value = False
     _scroll_before_load_state = None
+    _cursor_need_cross = False
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -95,7 +100,7 @@ class ListView(QListView):
             return
 
     def change_selection(self, _new_selection):
-        print('[SEL] {} -> {}'.format(self._current_selection, _new_selection))
+        #print('[SEL] {} -> {}'.format(self._current_selection, _new_selection))
         self._current_selection = _new_selection
         if self._selected_callback:
             self._selected_callback(_new_selection)
@@ -145,7 +150,7 @@ class ListView(QListView):
         if e.button() == Qt.LeftButton:
 
             mody = self.e_mody(e)
-            print('[mody]', mody, mody == Qt.ControlModifier)
+            #print('[mody]', mody, mody == Qt.ControlModifier)
             if mody != Qt.ControlModifier:
                 self._current_selection = []
 
@@ -245,6 +250,17 @@ class ListView(QListView):
 
         #scroll.setValue(new_value)
         #return super().wheelEvent(e)
+
+    def paintEvent(self, event):
+        last_cursor_need_cross = self._cursor_need_cross
+        self._cursor_need_cross = False
+        ret = super().paintEvent(event)
+        if self._cursor_need_cross != last_cursor_need_cross:
+            if self._cursor_need_cross:
+                self.setCursor(Qt.PointingHandCursor)
+            else:
+                self.setCursor(Qt.ArrowCursor)
+        return ret
 
     def change_scroll_animated(self, new_value):
 
@@ -1008,7 +1024,6 @@ class MessagesListDelegate(ListDelegate):
         if isinstance(item.message, LoadMessagesButton):
             return 30, item.message
 
-
         drawer.links.clear()
         # font = drawer.font
         # metrics = QFontMetrics(font)
@@ -1024,43 +1039,6 @@ class MessagesListDelegate(ListDelegate):
         lines = drawer.lines #second_text.split('\n')
 
         new_lines = []
-        for line in lines:
-            # top_now += line_height
-            to_new_lines, top_now = drawer.split_line(line, (left, top_now, right), space_width, line_height)
-
-            # last_i = i = 0
-            # to_new_lines = []
-            # for i, w_drawer in enumerate(line):
-            #     left_now += space_width
-            #     r_right = left_now + w_drawer.width
-            #
-            #     # if w_drawer.word_type == WORD_TYPE_LINK:
-            #     #     pen_changed = True
-            #     #     if y_start <= mouse_pos[1] < y and x <= mouse_pos[0] <= x_end:
-            #     #         painter.setPen(QPen(QColor(delegate.LINK_COLOR_HOVER)))
-            #     #         painter.drawLine(x, y + 3, x_end, y + 3)
-            #     #         delegate.listView.cursor_need_cross = True
-            #     #     else:
-            #     #         painter.setPen(QPen(QColor(delegate.LINK_COLOR)))
-            #     #     rect = (x, y_start, x_end, y)
-            #     #     mes_drawer.links.add((w, rect))
-            #
-            #     if r_right > right:
-            #         to_new_lines.append(WordsLine(line[last_i:i]))
-            #         last_i = i
-            #         left_now = left + w_drawer.width
-            #         top_now += line_height
-            #     else:
-            #         left_now = r_right
-            #
-            # if len(to_new_lines) == 0:
-            #     to_new_lines.append(WordsLine(line))
-            #     top_now += line_height
-            # elif last_i < i:
-            #     to_new_lines.append(WordsLine(line[last_i:]))
-            #     top_now += line_height
-
-            new_lines += to_new_lines
 
         quote = item.message.quote
         if quote:
@@ -1070,7 +1048,8 @@ class MessagesListDelegate(ListDelegate):
 
             _quote_lines = []
             for i, line in enumerate(_quote_text.split('\n')):
-                to_new_qoute_lines, top_now = drawer.split_line(line, (left, top_now, right), space_width, line_height)
+                to_new_qoute_lines, top_now = drawer.split_line(line, (left, top_now, right), space_width, line_height,
+                                                                lambda a: QuoteLine(a, quote, drawer))
 
                 # _quote_lines = [QuoteLine(drawer.split_line(li, (left, top_now + i*QuoteLine._line_height)), quote, drawer)
                 #                                 for i, li in enumerate(_quote_text.split('\n'))]
@@ -1091,6 +1070,12 @@ class MessagesListDelegate(ListDelegate):
 
             new_lines = _quote_author + _quote_file + _quote_lines + new_lines
 
+        for line in lines:
+            # top_now += line_height
+            to_new_lines, top_now = drawer.split_line(line, (left, top_now, right), space_width, line_height)
+
+            new_lines += to_new_lines
+
         message_height = (len(new_lines)) * line_height
 
         file = item.message.file
@@ -1110,6 +1095,8 @@ class MessagesListDelegate(ListDelegate):
         left, top, right, bottom = left_top_right_bottom
         right -= 10
         line_height, lines = line_height_and_lines
+
+        mouse_pos = self._mouse_pos
 
         custom_selection: CustomSelection = self.listView._custom_selection
         sel_start = custom_selection.start
@@ -1168,24 +1155,29 @@ class MessagesListDelegate(ListDelegate):
 
             drawer.message.message.set_selected_text(selected_text)
 
+        if top < mouse_pos[0] < bottom:
+            print('drawer DRAW: {} = {} = {}'.format(id(drawer), drawer.links, top))
+
     def on_mouse_release(self, e):
         ind = self.listView.indexAt(e.pos())
         message = ind.data()
         # font = option.font
         # font.setPixelSize(14)
         # fm = QFontMetrics(font)
+        ind_rect = self.listView.visualRect(ind)
 
         # FIXME simplify...
         if e.button() == Qt.LeftButton:
 
-            drawer = message.drawer
+            drawer: MessageDrawer = message.drawer
             #chat_api = ChatApi.instance()
+
+            print('LINKS({}): {} : {}'.format(id(drawer), drawer.links, e.pos().x()))
 
             if drawer.links:
 
-                rect, (left, top, right, bottom) = self.get_ltrb_and_rect(option)
-
-                last_message = self.get_last_message(messages, current_row)
+                #rect, (left, top, right, bottom) = self.get_ltrb_and_rect(option)
+                #last_message = self.get_last_message(messages, current_row)
 
                 mes_top = 0
 
@@ -1194,21 +1186,20 @@ class MessagesListDelegate(ListDelegate):
                 #     infoRect = self.get_infoRect(fm, sender_nickname, (left, top, right, bottom))
                 #     mes_top = infoRect.bottom()
 
-                mes_left = self.get_avatar_right(rect)
+                #mes_left = self.get_avatar_right(rect)
 
-                print('HAS LINKS: {}'.format(mes_drawer.links))
-
-                pos = event.pos()
-                pos_tuple = (pos.x() - mes_left, pos.y() - mes_top - top) # - mes_drawer.font_height
-
-                print('POS: {} -> {} RECT: {}'.format((pos.x(), pos.y()), pos_tuple, (left, top, right, bottom)))
+                pos = (e.pos().x(), e.pos().y()-ind_rect.top())
+                #pos_tuple = (pos.x() - mes_left, pos.y() - mes_top - top) # - mes_drawer.font_height
+                #print('POS: {} -> {} RECT: {}'.format((pos.x(), pos.y()), pos_tuple, (left, top, right, bottom)))
 
                 link = None
-                for _link, rect in mes_drawer.links:
-                    if rect[0] <= pos.x() <= rect[2] and rect[1] <= pos.y() <= rect[3]:
-                        link = _link
+                for w_drawer in drawer.links:
+                    rect = w_drawer.rect
+                    print('  .. {}'.format(rect))
+                    if rect[0] <= pos[0] <= rect[2] and rect[1] <= pos[1] <= rect[3]:
+                        link = w_drawer
 
-                print('\t-> ON LINK: {}'.format(link))
+                print('\t-> ON LINK: {} : {}'.format(link, pos))
 
                 # on_word = mes_drawer.get_word(pos_tuple[0], pos_tuple[1])
                 # print('\t-> ON WORD: {}'.format(on_word))
@@ -1216,35 +1207,32 @@ class MessagesListDelegate(ListDelegate):
                 need_clear_selection = False
 
                 if link:
+
                     if hasattr(link, 'word_type') and link.word_type == WORD_TYPE_LINK:
                         if link.url.startswith('#INPUT_CALL:'):
-                            if chat_api.callbacks != None:
-                                chat_api.callbacks.onInputCall(link.url[len('#INPUT_CALL:'):])
-                                need_clear_selection = True
+                            self.list_model.on_chat_event('INPUT_CALL', link.url[len('#INPUT_CALL:'):])
+                            # if chat_api.callbacks != None:
+                            #     chat_api.callbacks.onInputCall(link.url[len('#INPUT_CALL:'):])
+                            need_clear_selection = True
                         else:
+                            import webbrowser
                             webbrowser.open(link.url, new=0, autoraise=True)
                             need_clear_selection = True
 
-                    elif link.line_type == LINE_TYPE_FILE:
+                    elif hasattr(link, 'line_type') and link.line_type == LINE_TYPE_FILE:
                         need_clear_selection = True
                         file_uuid = link.file_uuid
                         filename = link.filename
                         filesize = link.filesize
-                        # quote = message.quote
-                        # if quote is not None:
-                        #     file = quote.file
-                        #     file_name = quote.fileName
-                        #     file_size = Message.fileSizeToStringFromRaw(quote.fileSize) # FIXME
                         if file_uuid and len(file_uuid) > 1:
-                            #file_path = join(ChatApiCommon.getDownloadsDirectoryPath(), file_name)
-                            file_path = ChatApiCommon.getDownloadsFilePath(filename, file_uuid)
+                            file_path = getDownloadsFilePath(filename, file_uuid)
                             if exists(file_path):
                                 self.listView.main_widget.showFileDialog(file_path, filesize, file_uuid)
                             else:
-                                ChatApi.instance().downloadFile(file_uuid, filename)
+                                self.list_model.on_need_download_file(file_uuid, filename)
 
-                if need_clear_selection:
-                    self.selection.clear()
+                # if need_clear_selection:
+                #     self.selection.clear()
 
     def get_background_color(self, current_item):
 
@@ -1398,6 +1386,12 @@ class MessagesListModel(ListModel):
         pass
 
     def add_to_delivered_by_gui(self, mes_id):
+        pass
+
+    def on_need_download_file(self, file_uuid, filename):
+        pass
+
+    def on_chat_event(self, event, *args, **kwargs):
         pass
 
 

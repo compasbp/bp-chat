@@ -42,26 +42,84 @@ class MessageDrawer:
         self.lines = [
             [WordDrawer(w.strip(), self) for w in line.split(' ')] for line in lines
         ]
+        self.links = set()
 
     @property
     def font(self):
         return self._font
 
-    def split_line(self, line):
-        _words = line.split(' ')
-        new_words = []
-        for w in _words:
+    def split_line(self, line, left_top_right, space_width, line_height):
+        left, top_now, right = left_top_right
+        left_now = left - space_width
+
+        _words = line.split(' ') if type(line) == str else line
+
+        last_i = i = 0
+        to_new_lines = []
+
+        for i, w in enumerate(_words):
             if type(w) == int:
                 continue
 
             w, link = self.get_link_from_word(w)
             if link:
-                w = LinkWordDrawer(w, self, link)
+                w_drawer = LinkWordDrawer(w, self, link)
             else:
-                w = WordDrawer(w, self)
+                w_drawer = WordDrawer(w, self)
+            _words[i] = w_drawer
 
-            new_words.append(w)
-        return new_words
+            left_now += space_width
+            left_now_0 = left_now
+            r_right = left_now + w_drawer.width
+
+            if r_right > right:
+                to_new_lines.append(WordsLine(_words[last_i:i]))
+                last_i = i
+                left_now = left + w_drawer.width
+                top_now += line_height
+            else:
+                left_now = r_right
+
+            pen_changed = False
+            if w_drawer.word_type == WORD_TYPE_LINK:
+                pen_changed = True
+
+                y_start = top_now
+                y = top_now - line_height
+                x = left_now_0
+                x_end = r_right
+
+                # if y_start <= mouse_pos[1] < y and x <= mouse_pos[0] <= x_end:
+                #     painter.setPen(QPen(QColor(self.delegate.LINK_COLOR_HOVER)))
+                #     painter.drawLine(x, y + 3, x_end, y + 3)
+                #     delegate.listView.cursor_need_cross = True
+                # else:
+                #     painter.setPen(QPen(QColor(delegate.LINK_COLOR)))
+                w_drawer.rect = (x, y_start, x_end, y)
+                self.links.add(w_drawer)
+
+            #new_words.append(w)
+
+        # for i, w_drawer in enumerate(new_words):
+        #     left_now += space_width
+        #     r_right = left_now + w_drawer.width
+        #
+        #     if r_right > right:
+        #         to_new_lines.append(WordsLine(new_words[last_i:i]))
+        #         last_i = i
+        #         left_now = left + w_drawer.width
+        #         top_now += line_height
+        #     else:
+        #         left_now = r_right
+
+        if len(to_new_lines) == 0:
+            to_new_lines.append(WordsLine(_words))
+            top_now += line_height
+        elif last_i < i:
+            to_new_lines.append(WordsLine(_words[last_i:]))
+            top_now += line_height
+
+        return to_new_lines, top_now
 
     @staticmethod
     def get_link_from_word(word):
@@ -107,6 +165,7 @@ class WordsLine(LineBase, list):
         line_height = self.line_height
         line_start = top_now - line_height
         line_end = top_now
+        mouse_pos = mes_drawer.delegate._mouse_pos
 
         select_start_in_this_line = select_end_in_this_line = select_start_upper = select_end_lower = False
         if sel_start and sel_end:
@@ -117,11 +176,27 @@ class WordsLine(LineBase, list):
 
         selected_words = []
 
+        temp_pen = painter.pen()
+
         w_left = left
         for w in self:
 
             a_left = w_left
             a_right = a_left
+
+            pen_changed = False
+            if w.word_type == WORD_TYPE_LINK:
+                pen_changed = True
+                x, y_start, x_end, y = w.rect
+                if y_start <= mouse_pos[1] < y and x <= mouse_pos[0] <= x_end:
+                    painter.setPen(QPen(QColor(mes_drawer.LINK_COLOR_HOVER)))
+                    painter.drawLine(x, y + 3, x_end, y + 3)
+                    mes_drawer.delegate.listView.cursor_need_cross = True
+                else:
+                    painter.setPen(QPen(QColor(mes_drawer.LINK_COLOR)))
+                # rect = (x, y_start, x_end, y)
+                # mes_drawer.links.add((w, rect))
+
             selected_aa = []
             for a in w:
                 r = mes_drawer.metrics.boundingRect(0, 0, 9999, 9999, Qt.Horizontal,
@@ -141,7 +216,11 @@ class WordsLine(LineBase, list):
                                          QColor("#cccccc"))
                         selected_aa.append(a)
 
+                if pen_changed:
+                    painter.setPen(temp_pen)
+
                 a_left += r.width()
+
 
             if len(selected_aa) > 0:
                 selected_words.append(''.join(selected_aa))
@@ -356,7 +435,7 @@ class QuoteAuthor(LineBase, QuoteDrawAdd):
 class QuoteLine(WordsLine, QuoteDrawAdd):
 
     first_word_left = 10
-    #line_height = 14
+    _line_height = 14
     # padding_first_top = 10
     #margin_last_bottom = 10
     is_last_quote_line = False

@@ -55,6 +55,14 @@ class MessageDrawer:
                 self.split_line(line) for line in _quote_text.split('\n')
             ]
 
+        self.file_line = None
+        if hasattr(message.message, 'file'):
+            file = message.message.file
+            has_file = file is not None and len(file) > 1
+            if has_file:
+                filename = message.message.getFileName()
+                self.file_line = FileLine(message.message.getFile(), filename, message.message.getFileSize(), self)
+
         self.links = set()
 
     @property

@@ -1075,15 +1075,12 @@ class MessagesListDelegate(ListDelegate):
 
         message_height = (len(new_lines)) * line_height
 
-        file = item.message.file
-        has_file = file is not None and len(file) > 1
-        if has_file:
-            filename = item.message.getFileName()
-            file_line = FileLine(item.message.getFile(), filename, item.message.getFileSize(), drawer)
+        if drawer.file_line:
+            file_line = drawer.file_line
             message_height += file_line.line_height
 
             new_lines.insert(0, file_line)
-            if second_text == filename: # FIXME
+            if second_text == drawer.file_line.filename: # FIXME
                 new_lines = new_lines[:1]
 
         return message_height, new_lines

@@ -1024,7 +1024,7 @@ class MessagesListDelegate(ListDelegate):
         if isinstance(item.message, LoadMessagesButton):
             return 30, item.message
 
-        drawer.links.clear()
+        # drawer.links.clear()
         # font = drawer.font
         # metrics = QFontMetrics(font)
 
@@ -1042,17 +1042,14 @@ class MessagesListDelegate(ListDelegate):
 
         quote = item.message.quote
         if quote:
-            _quote_text = item.message.get_quote_text()
-            if not _quote_text:
-                _quote_text = ''
+            # _quote_text = item.message.get_quote_text()
+            # if not _quote_text:
+            #     _quote_text = ''
 
             _quote_lines = []
-            for i, line in enumerate(_quote_text.split('\n')):
-                to_new_qoute_lines, top_now = drawer.split_line(line, (left, top_now, right), space_width, line_height,
+            for i, line in enumerate(drawer.quote_lines):
+                to_new_qoute_lines, top_now = drawer.prepare_line(line, (left, top_now, right), space_width, line_height,
                                                                 lambda a: QuoteLine(a, quote, drawer))
-
-                # _quote_lines = [QuoteLine(drawer.split_line(li, (left, top_now + i*QuoteLine._line_height)), quote, drawer)
-                #                                 for i, li in enumerate(_quote_text.split('\n'))]
                 _quote_lines += to_new_qoute_lines
 
             _quote_author = [QuoteAuthor(quote, drawer)]
@@ -1072,7 +1069,7 @@ class MessagesListDelegate(ListDelegate):
 
         for line in lines:
             # top_now += line_height
-            to_new_lines, top_now = drawer.split_line(line, (left, top_now, right), space_width, line_height)
+            to_new_lines, top_now = drawer.prepare_line(line, (left, top_now, right), space_width, line_height)
 
             new_lines += to_new_lines
 

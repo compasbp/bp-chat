@@ -44,8 +44,7 @@ class MessageDrawer:
         ]
         
         self.quote_lines = []
-
-        #quote = message.message.quote
+        self.quote_file = None
         if hasattr(message.message, 'quote') and message.message.quote:
             _quote_text = message.message.get_quote_text()
             if not _quote_text:
@@ -54,6 +53,12 @@ class MessageDrawer:
             self.quote_lines = [
                 self.split_line(line) for line in _quote_text.split('\n')
             ]
+
+            quote_filename = message.message.getFileName()
+            quote_file = message.message.getFile()
+            quote_file_size = message.message.getFileSize()
+            if quote_file and quote_file not in (0, '0'):
+                self.quote_file = QuoteFile(quote_file, quote_filename, quote_file_size, self)
 
         self.file_line = None
         if hasattr(message.message, 'file'):

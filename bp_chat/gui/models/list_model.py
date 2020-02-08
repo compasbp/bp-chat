@@ -1042,9 +1042,6 @@ class MessagesListDelegate(ListDelegate):
 
         quote = item.message.quote
         if quote:
-            # _quote_text = item.message.get_quote_text()
-            # if not _quote_text:
-            #     _quote_text = ''
 
             _quote_lines = []
             for i, line in enumerate(drawer.quote_lines):
@@ -1054,13 +1051,9 @@ class MessagesListDelegate(ListDelegate):
 
             _quote_author = [QuoteAuthor(quote, drawer)]
 
-            quote_filename = item.message.getFileName()
-            quote_file = item.message.getFile()
-            quote_file_size = item.message.getFileSize()
             _quote_file = []
-            if quote_file and quote_file not in (0, '0'):
-                # print(f'quote_filename: {quote_filename} quote_file: {quote_file} quote_file_size: {quote_file_size}')
-                _quote_file.append(QuoteFile(quote_file, quote_filename, quote_file_size, drawer))
+            if drawer.quote_file:
+                _quote_file.append(drawer.quote_file)
 
             if len(_quote_lines) > 0:
                 _quote_lines[-1].is_last_quote_line = True
@@ -1149,7 +1142,7 @@ class MessagesListDelegate(ListDelegate):
 
             drawer.message.message.set_selected_text(selected_text)
 
-        if top < mouse_pos[0] < bottom:
+        if top < mouse_pos[1] < bottom:
             print('drawer DRAW: {} = {} = {}'.format(id(drawer), drawer.links, top))
 
     def on_mouse_release(self, e):
@@ -1182,7 +1175,7 @@ class MessagesListDelegate(ListDelegate):
 
                 #mes_left = self.get_avatar_right(rect)
 
-                pos = (e.pos().x(), e.pos().y()-ind_rect.top())
+                pos = (e.pos().x(), e.pos().y())#-ind_rect.top())
                 #pos_tuple = (pos.x() - mes_left, pos.y() - mes_top - top) # - mes_drawer.font_height
                 #print('POS: {} -> {} RECT: {}'.format((pos.x(), pos.y()), pos_tuple, (left, top, right, bottom)))
 
@@ -1193,7 +1186,7 @@ class MessagesListDelegate(ListDelegate):
                     if rect[0] <= pos[0] <= rect[2] and rect[1] <= pos[1] <= rect[3]:
                         link = w_drawer
 
-                print('\t-> ON LINK: {} : {}'.format(link, pos))
+                print('\t-> ON LINK: {} : {} : {}'.format(link, pos, rect))
 
                 # on_word = mes_drawer.get_word(pos_tuple[0], pos_tuple[1])
                 # print('\t-> ON WORD: {}'.format(on_word))

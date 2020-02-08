@@ -27,7 +27,7 @@ class ListView(QListView):
     _scroll_show_animation = None
     _scroll_ignore_value = False
     _scroll_before_load_state = None
-    _cursor_need_cross = False
+    #_cursor_need_cross = False
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -251,16 +251,16 @@ class ListView(QListView):
         #scroll.setValue(new_value)
         #return super().wheelEvent(e)
 
-    def paintEvent(self, event):
-        last_cursor_need_cross = self._cursor_need_cross
-        self._cursor_need_cross = False
-        ret = super().paintEvent(event)
-        if self._cursor_need_cross != last_cursor_need_cross:
-            if self._cursor_need_cross:
-                self.setCursor(Qt.PointingHandCursor)
-            else:
-                self.setCursor(Qt.ArrowCursor)
-        return ret
+    # def paintEvent(self, event):
+    #     last_cursor_need_cross = self._cursor_need_cross
+    #     self._cursor_need_cross = False
+    #     ret = super().paintEvent(event)
+    #     if self._cursor_need_cross != last_cursor_need_cross:
+    #         if self._cursor_need_cross:
+    #             self.setCursor(Qt.PointingHandCursor)
+    #         else:
+    #             self.setCursor(Qt.ArrowCursor)
+    #     return ret
 
     def change_scroll_animated(self, new_value):
 
@@ -341,6 +341,7 @@ class ListDelegate(QItemDelegate):
     _mouse_on_item = None
     _mouse_on_image = None
     _mouse_on_name = None
+    _mouse_on_link = None
 
     def __init__(self, listView, list_model):
         super().__init__(listView)
@@ -710,6 +711,20 @@ class ListDelegate(QItemDelegate):
                                                            ))):
                 changed = True
 
+            drawer = getattr(item, 'drawer', None)
+            if drawer:
+                to_on_link = None
+                for link in drawer.links:
+                    link_rect = link.rect
+                    y = pos[1]
+                    if getattr(link, 'rect_local', None):  # FIXME
+                        y = pos[1] - rect.top()
+                    if link_rect[1] <= y <= link_rect[3] and link_rect[0] <= pos[0] <= link_rect[2]:
+                        to_on_link = link
+                if self._mouse_on_link != to_on_link:
+                    self._mouse_on_link = to_on_link
+                    changed = True
+
         else:
             for name in ('item', 'image', 'name'):
                 if self.change_value('_mouse_on_'+name, None):
@@ -724,7 +739,7 @@ class ListDelegate(QItemDelegate):
 
     def update_cursor(self):
         to_shape = Qt.ArrowCursor
-        if self._mouse_on_image or self._mouse_on_name:
+        if self._mouse_on_image or self._mouse_on_name or self._mouse_on_link:
             to_shape = Qt.PointingHandCursor
 
         listView: QListView = self.listView
@@ -1020,6 +1035,7 @@ class MessagesListDelegate(ListDelegate):
         drawer = getattr(item, 'drawer', None)
         if not drawer:
             drawer = MessageDrawer(item, self.prepareMessageFont(), second_text, self)
+        drawer.rect = left_top_right_bottom
 
         if isinstance(item.message, LoadMessagesButton):
             return 30, item.message
@@ -1142,8 +1158,8 @@ class MessagesListDelegate(ListDelegate):
 
             drawer.message.message.set_selected_text(selected_text)
 
-        if top < mouse_pos[1] < bottom:
-            print('drawer DRAW: {} = {} = {}'.format(id(drawer), drawer.links, top))
+        # if top < mouse_pos[1] < bottom:
+        #     print('drawer DRAW: {} = {} = {}'.format(id(drawer), drawer.links, top))
 
     def on_mouse_release(self, e):
         ind = self.listView.indexAt(e.pos())
@@ -1180,10 +1196,13 @@ class MessagesListDelegate(ListDelegate):
                 #print('POS: {} -> {} RECT: {}'.format((pos.x(), pos.y()), pos_tuple, (left, top, right, bottom)))
 
                 link = None
+                rect = None
                 for w_drawer in drawer.links:
                     rect = w_drawer.rect
-                    print('  .. {}'.format(rect))
-                    if rect[0] <= pos[0] <= rect[2] and rect[1] <= pos[1] <= rect[3]:
+                    y = pos[1]
+                    if getattr(w_drawer, 'rect_local', None): # FIXME
+                        y -= ind_rect.top()
+                    if rect[0] <= pos[0] <= rect[2] and rect[1] <= y <= rect[3]:
                         link = w_drawer
 
                 print('\t-> ON LINK: {} : {} : {}'.format(link, pos, rect))

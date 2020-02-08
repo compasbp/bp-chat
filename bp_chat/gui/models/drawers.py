@@ -25,6 +25,8 @@ class MessageDrawer:
     TEXT_WHITE_COLOR = '#FFFFFF'
     INFO_COLOR = '#808080'
 
+    rect = (0, 0, 0, 0)
+
     def __init__(self, message, font, text, delegate):
         self.message = message
         self._font = font
@@ -103,16 +105,16 @@ class MessageDrawer:
         last_i = i = 0
         to_new_lines = []
 
-        for i, w in enumerate(_words):
-            if type(w) == int:
+        for i, w_drawer in enumerate(_words):
+            if type(w_drawer) == int:
                 continue
 
-            w, link = self.get_link_from_word(w)
-            if link:
-                w_drawer = LinkWordDrawer(w, self, link)
-            else:
-                w_drawer = WordDrawer(w, self)
-            _words[i] = w_drawer
+            # w, link = self.get_link_from_word(w)
+            # if link:
+            #     w_drawer = LinkWordDrawer(w, self, link)
+            # else:
+            #     w_drawer = WordDrawer(w, self)
+            # _words[i] = w_drawer
 
             left_now += space_width
             left_now_0 = left_now
@@ -136,6 +138,7 @@ class MessageDrawer:
                 x_end = r_right
 
                 w_drawer.rect = (x, y_start, x_end, y)
+                w_drawer.rect_local = True
                 self.links.add(w_drawer)
 
         if len(to_new_lines) == 0:
@@ -214,10 +217,11 @@ class WordsLine(LineBase, list):
             if w.word_type == WORD_TYPE_LINK:
                 pen_changed = True
                 x, y_start, x_end, y = w.rect
-                if y_start <= mouse_pos[1] < y and x <= mouse_pos[0] <= x_end:
+                #if y_start <= mouse_pos[1] < y and x <= mouse_pos[0] <= x_end:
+                if mes_drawer.delegate._mouse_on_link == w:
                     painter.setPen(QPen(QColor(mes_drawer.LINK_COLOR_HOVER)))
                     painter.drawLine(x, y + 3, x_end, y + 3)
-                    mes_drawer.delegate.listView._cursor_need_cross = True
+                    #mes_drawer.delegate.listView._cursor_need_cross = True
                 else:
                     painter.setPen(QPen(QColor(mes_drawer.LINK_COLOR)))
                 # rect = (x, y_start, x_end, y)
@@ -374,17 +378,17 @@ class FileLine(LineBase):
         )
 
         rect = (left, text_rect.top(), fileNameRect.right(), max([fileNameRect.bottom(), text_rect.top() + pixmap_h]))
-        is_mouse_in = (
-            rect[0] <= mouse_pos[0] <= rect[2] and
-            rect[1] <= mouse_pos[1] <= rect[3]
-        )
+        # is_mouse_in = (
+        #     rect[0] <= mouse_pos[0] <= rect[2] and
+        #     rect[1] <= mouse_pos[1] <= rect[3]
+        # )
         self.rect = rect
         mes_drawer.links.add(self)
         #print('>> mes_drawer >> links: {}'.format(mes_drawer.links))
 
-        if is_mouse_in:
+        if mes_drawer.delegate._mouse_on_link == self:
             painter.setPen(QPen(QColor(mes_drawer.LINK_COLOR_HOVER)))
-            mes_drawer.delegate.listView._cursor_need_cross = True
+            #mes_drawer.delegate.listView._cursor_need_cross = True
         else:
             painter.setPen(QPen(QColor(mes_drawer.RESEND_COLOR)))
 
@@ -515,6 +519,8 @@ class QuoteFile(FileLine):
 
 class WordDrawer(str):
 
+    rect_local = False
+
     @staticmethod
     def __new__(cls, word: str, message_drawer: MessageDrawer, word_type: int = WORD_TYPE_SIMPLE):
         obj = str.__new__(cls, word)
@@ -526,16 +532,6 @@ class WordDrawer(str):
             w += a_w
         obj.width = w
         return obj
-
-
-#
-# class Word(str):
-#
-#     @staticmethod
-#     def __new__(cls, word: str, word_type: int = WORD_TYPE_SIMPLE):
-#         obj = str.__new__(cls, word)
-#         obj.word_type = word_type
-#         return obj
 
 
 class LinkWordDrawer(WordDrawer):

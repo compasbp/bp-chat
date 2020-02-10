@@ -496,7 +496,7 @@ class ListDelegate(QItemDelegate):
             background_color = QColor(240, 240, 240)
 
         # option.rect.adjusted(1, 1, -1, -1)
-        painter.fillRect(option.rect, background_color)  # Qt.SolidPattern)
+        painter.fillRect(option.rect.adjusted(1, 0, -1, 0), background_color)  # Qt.SolidPattern)
 
     def selected_color(self, selected_items):
         return QColor(235, 235, 235)

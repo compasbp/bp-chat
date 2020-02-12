@@ -217,15 +217,11 @@ class WordsLine(LineBase, list):
             if w.word_type == WORD_TYPE_LINK:
                 pen_changed = True
                 x, y_start, x_end, y = w.rect
-                #if y_start <= mouse_pos[1] < y and x <= mouse_pos[0] <= x_end:
                 if mes_drawer.delegate._mouse_on_link == w:
                     painter.setPen(QPen(QColor(mes_drawer.LINK_COLOR_HOVER)))
                     painter.drawLine(x, y + 3, x_end, y + 3)
-                    #mes_drawer.delegate.listView._cursor_need_cross = True
                 else:
                     painter.setPen(QPen(QColor(mes_drawer.LINK_COLOR)))
-                # rect = (x, y_start, x_end, y)
-                # mes_drawer.links.add((w, rect))
 
             selected_aa = []
             for a in w:
@@ -251,8 +247,6 @@ class WordsLine(LineBase, list):
 
             if len(selected_aa) > 0:
                 selected_words.append(''.join(selected_aa))
-
-            #max_width = max(max_width, a_left)
 
             painter.drawText(w_left, top_now, w)
             w_left = a_right + space_width

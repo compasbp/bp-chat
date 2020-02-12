@@ -203,9 +203,7 @@ class ListView(QListView):
                 else:
                     _current_selection.append(_cur_selected)
 
-            #if was_custom_active:
             if mody == Qt.ControlModifier and self._custom_selection.end != None:
-                print('!!!!!!!!')
                 self._custom_selection.end = None
                 delegate.on_custom_selection_changed(self._custom_selection)
 
@@ -392,12 +390,6 @@ class ListDelegate(QItemDelegate):
         painter.setPen(QColor(150, 150, 150))
 
         time_string_left = self.draw_right_text(painter, item, (left, top, right, bottom))
-        # time_string = self.list_model.getItemTimeString(item)
-        # if time_string:
-        #     font = self.prepareTimeFont()
-        #     painter.setFont(font)
-        #     time_string_left = right - 6*len(time_string)-10 + self.list_model.getRightAdd()
-        #     painter.drawText(time_string_left, self.time_top(top, bottom), time_string)
 
         pen, font = self.prepare_pen_and_font_for_name(painter, item)
         painter.setPen(pen)
@@ -427,7 +419,9 @@ class ListDelegate(QItemDelegate):
         if time_string:
             font = self.prepareTimeFont()
             painter.setFont(font)
-            time_string_left = right - 6 * len(time_string) - 10 + self.list_model.getRightAdd()
+            brect = painter.boundingRect(QRectF(0, 0, 9999, 50), time_string)
+            w = brect.width()
+            time_string_left = right - w - 15 #- 6 * len(time_string) - 10 #+ self.list_model.getRightAdd()
             painter.drawText(time_string_left, self.time_top(top, bottom), time_string)
         return time_string_left
 
@@ -464,33 +458,18 @@ class ListDelegate(QItemDelegate):
         return font
 
     def prepare_base_left_top_right_bottom(self, option):
-        return option.rect.left(), option.rect.top(), option.rect.right(), option.rect.bottom()
+        return option.rect.left(), option.rect.top(), option.rect.right()-self.list_model.getRightAdd(), option.rect.bottom()
 
     def fillRect(self, painter, item, index_row, option):
-        #background_color = QColor(255, 255, 255)
-
         background_color = self.get_background_color(item)
 
         selected = False
-        # current_item_id = self.list_model.getCurrentItemIndex()
-        # if item and current_item_id != -1 and current_item_id == index_row:
-        #     selected = True
-        # rows = [ind.row() for ind in self.listView.selectedIndexes()]
-        #
-        # selected = index_row in rows
-        #
-        # if selected:
-        #     background_color = QColor(235, 235, 235)
         selected_items = self.listView._current_selection or []
 
         if item in selected_items:
             _background_color = self.selected_color(selected_items)
             if _background_color:
                 background_color = _background_color
-
-        # selected_item_id = self.list_model.getSelectedItemIndex()
-        # if selected_item_id != -1 and selected_item_id == index_row:
-        #     background_color = QColor(240, 240, 240)
 
         if item and self.list_model.selected_item == item: # FIXME not using this!
             background_color = QColor(240, 240, 240)
@@ -527,7 +506,7 @@ class ListDelegate(QItemDelegate):
         return 12
 
     def time_font_size(self):
-        return 11
+        return 12
 
     def message_text_color(self):
         return QColor(150, 150, 150)
@@ -1164,36 +1143,20 @@ class MessagesListDelegate(ListDelegate):
     def on_mouse_release(self, e):
         ind = self.listView.indexAt(e.pos())
         message = ind.data()
-        # font = option.font
-        # font.setPixelSize(14)
-        # fm = QFontMetrics(font)
+        if not message:
+            return
         ind_rect = self.listView.visualRect(ind)
 
         # FIXME simplify...
         if e.button() == Qt.LeftButton:
 
             drawer: MessageDrawer = message.drawer
-            #chat_api = ChatApi.instance()
 
             print('LINKS({}): {} : {}'.format(id(drawer), drawer.links, e.pos().x()))
 
             if drawer.links:
 
-                #rect, (left, top, right, bottom) = self.get_ltrb_and_rect(option)
-                #last_message = self.get_last_message(messages, current_row)
-
-                mes_top = 0
-
-                # if self.need_show_sender_name(message, last_message):
-                #     sender_nickname = self.make_sender_nickname(message)
-                #     infoRect = self.get_infoRect(fm, sender_nickname, (left, top, right, bottom))
-                #     mes_top = infoRect.bottom()
-
-                #mes_left = self.get_avatar_right(rect)
-
                 pos = (e.pos().x(), e.pos().y())#-ind_rect.top())
-                #pos_tuple = (pos.x() - mes_left, pos.y() - mes_top - top) # - mes_drawer.font_height
-                #print('POS: {} -> {} RECT: {}'.format((pos.x(), pos.y()), pos_tuple, (left, top, right, bottom)))
 
                 link = None
                 rect = None
@@ -1206,39 +1169,25 @@ class MessagesListDelegate(ListDelegate):
                         link = w_drawer
 
                 print('\t-> ON LINK: {} : {} : {}'.format(link, pos, rect))
-
-                # on_word = mes_drawer.get_word(pos_tuple[0], pos_tuple[1])
-                # print('\t-> ON WORD: {}'.format(on_word))
-
-                need_clear_selection = False
-
                 if link:
 
                     if hasattr(link, 'word_type') and link.word_type == WORD_TYPE_LINK:
                         if link.url.startswith('#INPUT_CALL:'):
                             self.list_model.on_chat_event('INPUT_CALL', link.url[len('#INPUT_CALL:'):])
-                            # if chat_api.callbacks != None:
-                            #     chat_api.callbacks.onInputCall(link.url[len('#INPUT_CALL:'):])
-                            need_clear_selection = True
                         else:
                             import webbrowser
                             webbrowser.open(link.url, new=0, autoraise=True)
-                            need_clear_selection = True
 
                     elif hasattr(link, 'line_type') and link.line_type == LINE_TYPE_FILE:
-                        need_clear_selection = True
                         file_uuid = link.file_uuid
                         filename = link.filename
                         filesize = link.filesize
                         if file_uuid and len(file_uuid) > 1:
                             file_path = getDownloadsFilePath(filename, file_uuid)
                             if exists(file_path):
-                                self.listView.main_widget.showFileDialog(file_path, filesize, file_uuid)
+                                self.list_model.on_need_open_file(file_path, filesize, file_uuid)
                             else:
                                 self.list_model.on_need_download_file(file_uuid, filename)
-
-                # if need_clear_selection:
-                #     self.selection.clear()
 
     def get_background_color(self, current_item):
 
@@ -1286,8 +1235,9 @@ class MessagesListDelegate(ListDelegate):
         # font = self.simple_font
         # font.setBold(False)
         # font.setPixelSize(12)
-        # painter.setFont(font)
-        font = painter.font()
+        font = self.prepareTimeFont()
+        painter.setFont(font)
+        #font = painter.font()
         font_h = QFontMetrics(font).height()
 
         message = message.message
@@ -1306,10 +1256,10 @@ class MessagesListDelegate(ListDelegate):
         date_text = "{}".format(message.getTimeString())
         date_text_width = QFontMetrics(font).width(date_text)
 
-
         _top_left = QPoint(
             right - (date_text_width + padding_x + 5 + QFontMetrics(font).height()), #+ self.listView.width_add,
             bottom - font_h - padding_y)
+
         dateTextRect = QRect(_top_left, QSize(date_text_width, QFontMetrics(font).height()))
 
         painter.drawText(dateTextRect, Qt.AlignLeft, date_text)
@@ -1397,8 +1347,14 @@ class MessagesListModel(ListModel):
     def on_need_download_file(self, file_uuid, filename):
         pass
 
+    def on_need_open_file(self, file_path, filesize, file_uuid):
+        pass
+
     def on_chat_event(self, event, *args, **kwargs):
         pass
+
+    def getRightAdd(self):
+        return 10
 
 
 class ListModelItem:

@@ -11,6 +11,12 @@ def get_to_app_dir_path():
     app_path = LOCALAPPDATA + "/" + APP_NAME_DIR
     return app_path
 
+def get_app_dir_path_with_uuid_suf(app_name=APP_NAME_LOWER, app_binary_path_type=False):
+    path = get_app_dir_path(app_name, app_binary_path_type)
+    suf = with_uid_suf('.chat')
+    if suf:
+        return join(path, suf)
+    return path
 
 def get_app_dir_path(app_name=APP_NAME_LOWER, app_binary_path_type=False):
     if is_win():

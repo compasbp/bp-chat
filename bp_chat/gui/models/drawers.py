@@ -109,13 +109,6 @@ class MessageDrawer:
             if type(w_drawer) == int:
                 continue
 
-            # w, link = self.get_link_from_word(w)
-            # if link:
-            #     w_drawer = LinkWordDrawer(w, self, link)
-            # else:
-            #     w_drawer = WordDrawer(w, self)
-            # _words[i] = w_drawer
-
             left_now += space_width
             left_now_0 = left_now
             r_right = left_now + w_drawer.width
@@ -128,9 +121,7 @@ class MessageDrawer:
             else:
                 left_now = r_right
 
-            pen_changed = False
             if w_drawer.word_type == WORD_TYPE_LINK:
-                pen_changed = True
 
                 y_start = top_now
                 y = top_now + line_height
@@ -182,9 +173,6 @@ class WordsLine(LineBase, list):
     def line_height(self):
         return self._line_height
 
-    # def get_size(self, font_height):
-    #     return (0, font_height)
-
     def draw_line(self, mes_drawer, painter, left_top_right_bottom, sel_start, sel_end):
 
         left, top_now, right, bottom_now = left_top_right_bottom
@@ -194,7 +182,6 @@ class WordsLine(LineBase, list):
         line_height = self.line_height
         line_start = top_now - line_height
         line_end = top_now
-        mouse_pos = mes_drawer.delegate._mouse_pos
 
         select_start_in_this_line = select_end_in_this_line = select_start_upper = select_end_lower = False
         if sel_start and sel_end:
@@ -224,11 +211,11 @@ class WordsLine(LineBase, list):
                     painter.setPen(QPen(QColor(mes_drawer.LINK_COLOR)))
 
             selected_aa = []
-            for a in w:
-                r = mes_drawer.metrics.boundingRect(0, 0, 9999, 9999, Qt.Horizontal,
-                                                a)  # painter.boundingRect(QRectF(0, 0, 500, 500), a)
+            for a, a_w in zip(w, w.widths):
+                # r = mes_drawer.metrics.boundingRect(0, 0, 9999, 9999, Qt.Horizontal,
+                #                                 a)  # painter.boundingRect(QRectF(0, 0, 500, 500), a)
 
-                a_right = a_left + r.width()
+                a_right = a_left + a_w
 
                 if sel_start and sel_end:
                     if (
@@ -242,7 +229,7 @@ class WordsLine(LineBase, list):
                                          QColor("#cccccc"))
                         selected_aa.append(a)
 
-                a_left += r.width()
+                a_left += a_w
 
 
             if len(selected_aa) > 0:
@@ -441,7 +428,6 @@ class QuoteAuthor(LineBase, QuoteDrawAdd):
             return 0, 0
         return 0, font_height
 
-    #def draw(self, painter: QPainter, text_rect, font_height, mouse_pos):
     def draw_line(self, mes_drawer, painter, left_top_right_bottom, sel_start, sel_end):
         left, top, right, bottom = left_top_right_bottom
 
@@ -456,7 +442,7 @@ class QuoteAuthor(LineBase, QuoteDrawAdd):
         painter.setFont(font)
         fm = QFontMetrics(font)
         font_h = fm.height()
-        font_height = - self.line_height + font_h #font_h
+        font_height = - self.line_height + font_h
 
         painter.drawText(left + self.first_word_left, top + font_height - 2, self.quote.getSenderName())
 
@@ -468,41 +454,29 @@ class QuoteLine(WordsLine, QuoteDrawAdd):
 
     first_word_left = 10
     _line_height = 14
-    # padding_first_top = 10
-    #margin_last_bottom = 10
     is_last_quote_line = False
 
     def __init__(self, lst, quote: QuoteInfo, message_drawer):
         self.quote = quote
         self.message_drawer = message_drawer
         super().__init__(lst)
+        self.pen = QPen(QColor(message_drawer.INFO_COLOR))
 
     @property
     def line_height(self):
         return (10 + self._line_height) if self.is_last_quote_line else self._line_height
 
-    # def draw_line(self, mes_drawer, painter: QPainter, delegate,
-    #               message, word_num: int, x: int, y: int, y_start: int,
-    #               mouse_pos, selection, selection_sorted,
-    #               font_width, letter_width: float, temp_pen, last_w_drawn):
     def draw_line(self, mes_drawer, painter, left_top_right_bottom, sel_start, sel_end):
         left, top, right, bottom = left_top_right_bottom
         temp_pen = painter.pen()
-        temp_font = painter.font()
 
         self.draw_left_line(painter, left, top, bottom)
 
-        # font = temp_pen
-        # font.setPixelSize(self.line_height)
-        # painter.setFont(font)
-
-        pen = QPen(QColor(mes_drawer.INFO_COLOR))
-        painter.setPen(pen)
+        painter.setPen(self.pen)
 
         ret = super().draw_line(mes_drawer, painter, left_top_right_bottom, sel_start, sel_end)
 
         painter.setPen(temp_pen)
-        #painter.setFont(temp_font)
         return ret
 
 
@@ -515,16 +489,30 @@ class WordDrawer(str):
 
     rect_local = False
 
+    metrics = None
+
     @staticmethod
     def __new__(cls, word: str, message_drawer: MessageDrawer, word_type: int = WORD_TYPE_SIMPLE):
         obj = str.__new__(cls, word)
         obj.message_drawer = message_drawer
         obj.word_type = word_type
+
+        if not WordDrawer.metrics:
+            font = QFont("Arial")
+            font.setPixelSize(14)
+            font.setBold(False)
+            WordDrawer.metrics = QFontMetrics(font)
+
+        metrics = WordDrawer.metrics
+
         w = 0
+        ws = []
         for a in obj:
-            a_w = message_drawer.metrics.boundingRect(0, 0, 9999, 9999, Qt.Horizontal, a).width()
+            a_w = metrics.boundingRect(0, 0, 9999, 9999, Qt.Horizontal, a).width()
             w += a_w
+            ws.append(a_w)
         obj.width = w
+        obj.widths = tuple(ws)
         return obj
 
 

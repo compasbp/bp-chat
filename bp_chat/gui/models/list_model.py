@@ -9,7 +9,7 @@ from threading import Timer
 from copy import copy
 from datetime import datetime
 from os.path import exists
-from sys import platform
+from sys import platform, argv
 
 from bp_chat.gui.core.draw import draw_badges, get_round_mask, color_from_hex
 from .funcs import item_from_object
@@ -18,6 +18,18 @@ from .drawers import (MessageDrawer, WordsLine, FileLine, QuoteAuthor, QuoteLine
 from ..core.draw import pixmap_from_file, icon_from_file, IconDrawer
 from bp_chat.core.files_map import getDownloadsFilePath, FilesMap
 
+
+def print_timeit(func):
+    if 'timeit' in argv:
+        def _new_func(*args, **kwargs):
+            start = datetime.now()
+            ret = func(*args, **kwargs)
+            dt = datetime.now() - start
+            print(dt)
+            return ret
+    else:
+        _new_func = func
+    return _new_func
 
 
 class ListView(QListView):
@@ -365,6 +377,7 @@ class ListDelegate(QItemDelegate):
 
         return self.round_mask
 
+    @print_timeit
     def paint(self, painter, option, index):
 
         left, top, right, bottom = self.prepare_base_left_top_right_bottom(option)
@@ -1019,14 +1032,8 @@ class MessagesListDelegate(ListDelegate):
         if isinstance(item.message, LoadMessagesButton):
             return 30, item.message
 
-        # drawer.links.clear()
-        # font = drawer.font
-        # metrics = QFontMetrics(font)
-
-        #w_rect = metrics.boundingRect(0, 0, 9999, 9999, Qt.Horizontal, 'w')
-        line_height = drawer.line_height #w_rect.height()
-        space_width = drawer.w_width #w_rect.width()
-        message_height = 0
+        line_height = drawer.line_height
+        space_width = drawer.w_width
 
         top_now = top #- line_height
         left_now = left - space_width
@@ -1034,6 +1041,7 @@ class MessagesListDelegate(ListDelegate):
         lines = drawer.lines #second_text.split('\n')
 
         new_lines = []
+        message_height = 0
 
         quote = item.message.quote
         if quote:

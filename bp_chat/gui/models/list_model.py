@@ -39,7 +39,6 @@ class ListView(QListView):
     _scroll_show_animation = None
     _scroll_ignore_value = False
     _scroll_before_load_state = None
-    #_cursor_need_cross = False
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -55,6 +54,7 @@ class ListView(QListView):
         scroll.setSingleStep(10)
         self.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
         self.setMouseTracking(True)
+        self.setSelectionMode(QAbstractItemView.NoSelection)
 
         self._custom_selection = CustomSelection()
         self._scroll_last_value = 0
@@ -63,6 +63,7 @@ class ListView(QListView):
         #self.scroll.setWindowOpacity(0)
         self.scroll.valueChanged.connect(self.on_scroll_changed)
         scroll.rangeChanged.connect(self.on_scroll_range_changed)
+        scroll.valueChanged.connect(self.on_scroll_changed_real)
 
     def scroll_to_bottom(self):
         if self._scroll_to_bottom not in self._after_scroll_range_change_actions:
@@ -77,9 +78,8 @@ class ListView(QListView):
 
     def scroll_to_state(self, maximum):
         self._scroll_before_load_state = maximum
-        if self._scroll_to_bottom not in self._after_scroll_range_change_actions:
+        if self._scroll_to_state not in self._after_scroll_range_change_actions:
             self._after_scroll_range_change_actions.append(self._scroll_to_state)
-        #self.model().reset_model(lambda: self._scroll_to_state(value, maximum))
 
     def _scroll_to_state(self):
         maximum = self._scroll_before_load_state
@@ -88,11 +88,7 @@ class ListView(QListView):
         self._scroll_before_load_state = None
         scroll_maximum = self.scroll.maximum()
         new_value = scroll_maximum - maximum
-        #print('[ _scroll_to_state ] {}/{} -> {}/{}'.format(0, maximum, new_value, scroll_maximum))
-        # if maximum > scroll_maximum:
-        #     self.scroll.setMaximum(maximum)
         if self.scroll.maximum() > maximum:
-            #print('  -> ', new_value)
             self.scroll.setValue(new_value)
 
     def showEvent(self, *args, **kwargs):
@@ -112,7 +108,6 @@ class ListView(QListView):
             return
 
     def change_selection(self, _new_selection):
-        #print('[SEL] {} -> {}'.format(self._current_selection, _new_selection))
         self._current_selection = _new_selection
         if self._selected_callback:
             self._selected_callback(_new_selection)
@@ -124,6 +119,7 @@ class ListView(QListView):
         scroll: QScrollBar = self.verticalScrollBar()
         scroll.setValue(value)
 
+    def on_scroll_changed_real(self, value):
         self.move_custom_selection_for_scroll(value)
 
     def move_custom_selection_for_scroll(self, value):
@@ -142,8 +138,15 @@ class ListView(QListView):
         self._scroll_last_value = value
 
     def on_scroll_range_changed(self, _min, _max):
-        print('on_scroll_range_changed', _min, _max, self.verticalScrollBar().maximum())
+        print('!!! on_scroll_range_changed', self.scroll.value(), self.scroll.maximum(), '->', _max)
+        # last_max = self.scroll.maximum()
+        # new_scroll_value = int(round(_max * self._scroll_last_value / self.scroll.maximum()))
+
         self.scroll.setRange(_min, _max)
+
+        # if new_scroll_value != self._scroll_last_value:
+        #     self.move_custom_selection_for_scroll(new_scroll_value)
+
         self._after_scroll_range_change_actions, actions = [], self._after_scroll_range_change_actions
         for action in actions:
             func = getattr(self, action) if type(action) == str else action
@@ -153,7 +156,9 @@ class ListView(QListView):
         ret = super().resizeEvent(e)
         self.scroll.move(self.width() - 10, 0)
         self.scroll.resize(10, self.height())
-        self.model().reset_model()
+        model = self.model()
+        if model:
+            model.reset_model()
         return ret
 
     def mousePressEvent(self, e):
@@ -162,7 +167,6 @@ class ListView(QListView):
         if e.button() == Qt.LeftButton:
 
             mody = self.e_mody(e)
-            #print('[mody]', mody, mody == Qt.ControlModifier)
             if mody != Qt.ControlModifier:
                 self._current_selection = []
 
@@ -185,28 +189,35 @@ class ListView(QListView):
         delegate = self.itemDelegate()
         pos = (e.pos().x(), e.pos().y())
 
+        will_model_reseted = False
         if self._custom_selection.active:
             self._custom_selection.end = pos
 
-            delegate.on_custom_selection_changed(self._custom_selection)
+            will_model_reseted = delegate.on_custom_selection_changed(self._custom_selection)
 
-        delegate.on_mouse_pos_changed(pos)
+        delegate.on_mouse_pos_changed(pos, will_model_reseted=will_model_reseted)
 
         return super().mouseMoveEvent(e)
 
     def mouseReleaseEvent(self, e):
 
-        was_custom_active = self._custom_selection.active
+        #was_custom_active = self._custom_selection.active
         self._custom_selection.active = False
         delegate = self.itemDelegate()
 
+        _cur_selected = self.indexAt(e.pos()).data()
+        _current_selection = self._current_selection
+
         if e.button() == Qt.RightButton:
+            if _cur_selected:
+                if _cur_selected not in _current_selection and len(_current_selection) == 1:
+                    _current_selection.clear()
+                    _current_selection.append(_cur_selected)
+
             self.open_menu_for_selected_item(e.globalPos())
 
         elif e.button() == Qt.LeftButton:
             mody = self.e_mody(e)
-            _cur_selected = self.indexAt(e.pos()).data()
-            _current_selection = self._current_selection
 
             if _cur_selected:
                 if _cur_selected in _current_selection:
@@ -246,31 +257,15 @@ class ListView(QListView):
         return super().leaveEvent(e)
 
     def wheelEvent(self, e):
-        #return super().wheelEvent(e)
         dy = e.pixelDelta().y()
         dya = e.angleDelta().y()
         scroll: QScrollBar = self.verticalScrollBar()
-        #print(dy, dya, scroll.value(), scroll.maximum())
         e.ignore()
 
         last_value = scroll.value()
         new_value = last_value - int(round(dya / 1))
 
         self.change_scroll_animated(new_value)
-
-        #scroll.setValue(new_value)
-        #return super().wheelEvent(e)
-
-    # def paintEvent(self, event):
-    #     last_cursor_need_cross = self._cursor_need_cross
-    #     self._cursor_need_cross = False
-    #     ret = super().paintEvent(event)
-    #     if self._cursor_need_cross != last_cursor_need_cross:
-    #         if self._cursor_need_cross:
-    #             self.setCursor(Qt.PointingHandCursor)
-    #         else:
-    #             self.setCursor(Qt.ArrowCursor)
-    #     return ret
 
     def change_scroll_animated(self, new_value):
 
@@ -288,7 +283,7 @@ class ListView(QListView):
 
         if self._scroll_animation:
             self._scroll_animation.stop()
-            last_value = scroll.value() #self._scroll_animation._next
+            last_value = scroll.value()
 
         self._scroll_ignore_value = True
         self.scroll.setValue(new_value)
@@ -298,22 +293,16 @@ class ListView(QListView):
         self._scroll_animation.setDuration(100)
         self._scroll_animation.setStartValue(last_value)
         self._scroll_animation.setEndValue(new_value)
-        #self._scroll_animation._next = new_value
 
         self._scroll_animation.start()
 
-        self.move_custom_selection_for_scroll(new_value)
+        #self.move_custom_selection_for_scroll(new_value)
 
 
     def animate_scroll_show(self, show=True, time=500):
         if self._scroll_show_animation:
             self._scroll_show_animation.stop()
             self._scroll_show_animation.deleteLater()
-        # self._scroll_show_animation = QPropertyAnimation(self.scroll, b"windowOpacity")
-        # self._scroll_show_animation.setDuration(100)
-        # self._scroll_show_animation.setStartValue(1)
-        # self._scroll_show_animation.setEndValue(0)
-        # self._scroll_show_animation.start()
 
         start, end = (0.0, 1.0) if show else (1.0, 0.0)
 
@@ -324,7 +313,7 @@ class ListView(QListView):
         animation.setDuration(time)
         animation.setStartValue(start)
         animation.setEndValue(end)
-        animation.start()#QPropertyAnimation.DeleteWhenStopped)
+        animation.start()
 
     def clear_selection(self):
         self._current_selection = []
@@ -665,9 +654,9 @@ class ListDelegate(QItemDelegate):
         return super().eventFilter(obj, event)
 
     def on_custom_selection_changed(self, custom_selection):
-        pass
+        return False
 
-    def on_mouse_pos_changed(self, pos):
+    def on_mouse_pos_changed(self, pos, will_model_reseted=False):
         changed = False
         self._mouse_pos = pos
 
@@ -724,7 +713,8 @@ class ListDelegate(QItemDelegate):
 
         if changed:
             self.update_cursor()
-            self.list_model.reset_model()
+            if not will_model_reseted:
+                self.list_model.reset_model()
 
     def on_mouse_release(self, e):
         pass
@@ -910,16 +900,16 @@ class ListModel(QAbstractListModel):
 
     def _reset_model_do_action(self):
         #print('_reset_model_do_action', datetime.now())
-        temp_indx = self.delegate.listView.selectedIndexes()
+        #temp_indx = self.delegate.listView.selectedIndexes()
 
         self.beginResetModel()
         self.endResetModel()
 
-        item_selection = QItemSelection()
-        for i in temp_indx:
-            item_selection.select(i, i)
-
-        self.delegate.listView.selectionModel().select(item_selection, QItemSelectionModel.Select)
+        # item_selection = QItemSelection()
+        # for i in temp_indx:
+        #     item_selection.select(i, i)
+        #
+        # self.delegate.listView.selectionModel().select(item_selection, QItemSelectionModel.Select)
 
 
 class ChatsModel(ListModel):
@@ -1295,6 +1285,7 @@ class MessagesListDelegate(ListDelegate):
 
     def on_custom_selection_changed(self, custom_selection):
         self.list_model.reset_model()
+        return True
 
     def _is_under_mouse(self, item):
         return self._is_mouse_on_image(item) or self._is_mouse_on_name(item)

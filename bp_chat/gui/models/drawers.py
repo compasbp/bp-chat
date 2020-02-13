@@ -135,9 +135,11 @@ class MessageDrawer:
         if len(to_new_lines) == 0:
             to_new_lines.append(line_cls(_words))
             top_now += line_height
-        elif last_i < i:
+        elif last_i <= i:
             to_new_lines.append(line_cls(_words[last_i:]))
             top_now += line_height
+
+        #print(to_new_lines)
 
         return to_new_lines, top_now
 

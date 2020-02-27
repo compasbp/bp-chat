@@ -1007,8 +1007,9 @@ class MessagesListDelegate(ListDelegate):
         return top + 38
 
     def get_min_message_id(self):
-        lst = [k for k in self.list_model._keys_list if k >= 0]
-        return min(lst) if len(lst) > 0 else None
+        # lst = [k for k in self.list_model._keys_list if k >= 0]
+        # return min(lst) if len(lst) > 0 else None
+        return self.list_model.min_message_id
 
     def prepareMessageText(self, item, second_text, left_top_right_bottom):
         left, top, right, bottom = left_top_right_bottom
@@ -1091,13 +1092,14 @@ class MessagesListDelegate(ListDelegate):
             lines.draw(painter, left_top_right_bottom)
 
             if type(lines) == LoadMessagesButton:
-                min_message_id = self.get_min_message_id()
-                if self.last_load_min_message_id != min_message_id:
-                    val, maximum = self.listView.verticalScrollBar().value(), self.listView.verticalScrollBar().maximum()
-                    #self.listView.scroll.setValue(50)
-                    self.listView.scroll_to_state(maximum)
-                    self.last_load_min_message_id = min_message_id
-                    self.list_model.on_need_download_20(min_message_id)
+                self.start_load_last_20()
+                # min_message_id = self.get_min_message_id()
+                # if self.last_load_min_message_id != min_message_id:
+                #     val, maximum = self.listView.verticalScrollBar().value(), self.listView.verticalScrollBar().maximum()
+                #     #self.listView.scroll.setValue(50)
+                #     self.listView.scroll_to_state(maximum)
+                #     self.last_load_min_message_id = min_message_id
+                #     self.list_model.on_need_download_20(min_message_id)
 
         else:
             selected_text = None
@@ -1138,9 +1140,19 @@ class MessagesListDelegate(ListDelegate):
         # if top < mouse_pos[1] < bottom:
         #     print('drawer DRAW: {} = {} = {}'.format(id(drawer), drawer.links, top))
 
+    def start_load_last_20(self):
+        min_message_id = self.get_min_message_id()
+        if self.last_load_min_message_id != min_message_id:
+            val, maximum = self.listView.verticalScrollBar().value(), self.listView.verticalScrollBar().maximum()
+            # self.listView.scroll.setValue(50)
+            self.listView.scroll_to_state(maximum)
+            self.last_load_min_message_id = min_message_id
+            self.list_model.on_need_download_20(min_message_id)
+
     def on_mouse_release(self, e):
         ind = self.listView.indexAt(e.pos())
         message = ind.data()
+
         if not message:
             return
         ind_rect = self.listView.visualRect(ind)
@@ -1148,44 +1160,50 @@ class MessagesListDelegate(ListDelegate):
         # FIXME simplify...
         if e.button() == Qt.LeftButton:
 
-            drawer: MessageDrawer = message.drawer
+            if type(message.item) == LoadMessagesButton:
+                #self.last_load_min_message_id = -1
+                self.start_load_last_20()
 
-            print('LINKS({}): {} : {}'.format(id(drawer), drawer.links, e.pos().x()))
+            else:
 
-            if drawer.links:
+                drawer: MessageDrawer = message.drawer
 
-                pos = (e.pos().x(), e.pos().y())#-ind_rect.top())
+                print('LINKS({}): {} : {}'.format(id(drawer), drawer.links, e.pos().x()))
 
-                link = None
-                rect = None
-                for w_drawer in drawer.links:
-                    rect = w_drawer.rect
-                    y = pos[1]
-                    if getattr(w_drawer, 'rect_local', None): # FIXME
-                        y -= ind_rect.top()
-                    if rect[0] <= pos[0] <= rect[2] and rect[1] <= y <= rect[3]:
-                        link = w_drawer
+                if drawer.links:
 
-                print('\t-> ON LINK: {} : {} : {}'.format(link, pos, rect))
-                if link:
+                    pos = (e.pos().x(), e.pos().y())#-ind_rect.top())
 
-                    if hasattr(link, 'word_type') and link.word_type == WORD_TYPE_LINK:
-                        if link.url.startswith('#INPUT_CALL:'):
-                            self.list_model.on_chat_event('INPUT_CALL', link.url[len('#INPUT_CALL:'):])
-                        else:
-                            import webbrowser
-                            webbrowser.open(link.url, new=0, autoraise=True)
+                    link = None
+                    rect = None
+                    for w_drawer in drawer.links:
+                        rect = w_drawer.rect
+                        y = pos[1]
+                        if getattr(w_drawer, 'rect_local', None): # FIXME
+                            y -= ind_rect.top()
+                        if rect[0] <= pos[0] <= rect[2] and rect[1] <= y <= rect[3]:
+                            link = w_drawer
 
-                    elif hasattr(link, 'line_type') and link.line_type == LINE_TYPE_FILE:
-                        file_uuid = link.file_uuid
-                        filename = link.filename
-                        filesize = link.filesize
-                        if file_uuid and len(file_uuid) > 1:
-                            file_path = getDownloadsFilePath(filename, file_uuid)
-                            if exists(file_path):
-                                self.list_model.on_need_open_file(file_path, filesize, file_uuid)
+                    print('\t-> ON LINK: {} : {} : {}'.format(link, pos, rect))
+                    if link:
+
+                        if hasattr(link, 'word_type') and link.word_type == WORD_TYPE_LINK:
+                            if link.url.startswith('#INPUT_CALL:'):
+                                self.list_model.on_chat_event('INPUT_CALL', link.url[len('#INPUT_CALL:'):])
                             else:
-                                self.list_model.on_need_download_file(file_uuid, filename)
+                                import webbrowser
+                                webbrowser.open(link.url, new=0, autoraise=True)
+
+                        elif hasattr(link, 'line_type') and link.line_type == LINE_TYPE_FILE:
+                            file_uuid = link.file_uuid
+                            filename = link.filename
+                            filesize = link.filesize
+                            if file_uuid and len(file_uuid) > 1:
+                                file_path = getDownloadsFilePath(filename, file_uuid)
+                                if exists(file_path):
+                                    self.list_model.on_need_open_file(file_path, filesize, file_uuid)
+                                else:
+                                    self.list_model.on_need_download_file(file_uuid, filename)
 
     def get_background_color(self, current_item):
 
@@ -1304,6 +1322,9 @@ class MessagesListDelegate(ListDelegate):
 
 class MessagesListModel(ListModel):
 
+    is_only_files = False
+    min_message_id = -1
+
     def __init__(self, listView):
         super().__init__(listView, list_delegate_cls=MessagesListDelegate)
 
@@ -1327,15 +1348,27 @@ class MessagesListModel(ListModel):
         return 70
 
     def set_items_dict(self, val):
-        messages_dict = { int(k):v for k, v in val.items() }
+        keys = list(val.keys())
+        min_message_id = min(keys) if len(keys) > 0 else None
+        self.min_message_id = min_message_id
+
+        messages_dict = { int(k):v for k, v in val.items() if self.filt(k, v) }
         keys_list = sorted(list(messages_dict.keys()), key=lambda key: (messages_dict[key].datetime, key))
 
-        if len(messages_dict) >= 20: # FIXME
+        if len(messages_dict) >= 20 or self.is_only_files or min_message_id == None: # FIXME
             messages_dict.keys()
             messages_dict[-1] = LoadMessagesButton()
             keys_list.insert(0, -1)
 
+            # if self.is_only_files and len(keys_list) == 1:
+            #     self.delegate.last_load_min_message_id = -1
+
         return messages_dict, keys_list
+
+    def filt(self, k, m):
+        if not self.is_only_files:
+            return True
+        return True if m.has_file else False
 
     def make_menu(self, message_item):
         pass

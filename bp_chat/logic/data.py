@@ -137,6 +137,11 @@ class Message:
         #print("-- {}".format(self._time))
         return float(self.datetime.timestamp())
 
+    @property
+    def has_file(self):
+        file = self.file
+        return file is not None and len(file) > 1
+
 
 class QuoteInfo:
 

@@ -17,7 +17,7 @@ def set_widget_background(widget, color):
     return palette
 
 
-def draw_badges(painter, badges, left, top, font_pixel_size=10, factor=1, muted=False):
+def draw_badges(painter, badges, left, top, font_pixel_size=10, factor=1, muted=False, plus=True, bcolor=None):
 
     # draw badges
     pen = painter.pen()
@@ -26,7 +26,10 @@ def draw_badges(painter, badges, left, top, font_pixel_size=10, factor=1, muted=
 
     badges = str(badges)
 
-    main_color = QColor(150, 150, 150) if muted else QColor(255, 100, 100)
+    if bcolor:
+        main_color = QColor(bcolor)
+    else:
+        main_color = QColor(150, 150, 150) if muted else QColor(255, 100, 100)
 
     painter.setPen(QColor(255, 100, 100, 0))
     painter.setBrush(main_color)
@@ -45,7 +48,7 @@ def draw_badges(painter, badges, left, top, font_pixel_size=10, factor=1, muted=
     #font.setPointSize(6)
     font.setBold(True)
     painter.setFont(font)
-    painter.drawText(left, top, "+{}".format(badges))
+    painter.drawText(left, top, "+{}".format(badges) if plus else badges)
 
 
 def draw_rounded_form(painter, pos, size):

@@ -441,13 +441,15 @@ class ListDelegate(QItemDelegate):
         painter.drawText(_name_left, self.title_top(top), _name)
 
         if _nick and _nick != _name:
-            font = painter.font()
-            font.setPixelSize(10)
-            painter.setFont(font)
-            r = painter.boundingRect(QRectF(left, 0, 9999, 50), _nick)
-            w = r.width()
-            left = left + 34 - w/2
-            painter.drawText(left, top+55, _nick)
+            # font = painter.font()
+            # font.setPixelSize(10)
+            # painter.setFont(font)
+            # r = painter.boundingRect(QRectF(left, 0, 9999, 50), _nick)
+            # w = r.width()
+            # left = left + 34 - w/2
+            #painter.drawText(left, top+55, _nick)
+            draw_badges(painter, _nick, left+34, top+55, font_pixel_size=10,
+                        bcolor='#7777cc', plus=False, factor=0.6)
 
     def title_top(self, top):
         return self.message_top(top) - 20

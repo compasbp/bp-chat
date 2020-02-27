@@ -60,6 +60,9 @@ class ChatItem(ListModelItem, ColoredItem):
     def getName(self):
         return self.chat.title
 
+    def getNick(self):
+        return self.chat.getLogin()
+
     def getSecondText(self):
         message = self.chat.get_last_message()
         if message:

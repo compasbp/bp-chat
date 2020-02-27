@@ -429,6 +429,7 @@ class ListDelegate(QItemDelegate):
 
     def draw_name(self, painter, item, left, top, time_string_left):
         _name = self.list_model.getItemName(item)
+        _nick = self.list_model.getItemNick(item)
         _name_left = left + self._name_left_add()
 
         if time_string_left >= 10:
@@ -438,6 +439,15 @@ class ListDelegate(QItemDelegate):
                 _name = _name[:max_len] + "..."
 
         painter.drawText(_name_left, self.title_top(top), _name)
+
+        if _nick and _nick != _name:
+            font = painter.font()
+            font.setPixelSize(10)
+            painter.setFont(font)
+            r = painter.boundingRect(QRectF(left, 0, 9999, 50), _nick)
+            w = r.width()
+            left = left + 34 - w/2
+            painter.drawText(left, top+55, _nick)
 
     def title_top(self, top):
         return self.message_top(top) - 20
@@ -844,6 +854,9 @@ class ListModel(QAbstractListModel):
 
     def getItemName(self, item):
         return item.getName()
+
+    def getItemNick(self, item):
+        return item.getNick()
 
     def getItemSecondText(self, item):
         return item.getSecondText()
@@ -1393,6 +1406,9 @@ class ListModelItem:
 
     def getName(self):
         raise NotImplementedError
+
+    def getNick(self):
+        return None
 
     def getSecondText(self):
         return None

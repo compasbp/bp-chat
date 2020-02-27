@@ -43,6 +43,9 @@ class Chat:
         self.messages = messages
         self._type = chat_type
 
+    def getLogin(self):
+        return ''
+
     @property
     def id(self):
         return self._id

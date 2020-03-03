@@ -39,6 +39,7 @@ class ListView(QListView):
     _scroll_show_animation = None
     _scroll_ignore_value = False
     _scroll_before_load_state = None
+    _need_scroll_to_bottom_on_messages = False
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -66,10 +67,15 @@ class ListView(QListView):
         scroll.valueChanged.connect(self.on_scroll_changed_real)
 
     def scroll_to_bottom(self):
+        print('[ scroll_to_bottom ]') # FIXME
+        # if self._scroll_to_bottom not in self._after_scroll_range_change_actions:
+        #     self._after_scroll_range_change_actions.append(self._scroll_to_bottom)
+        #
+        # self.model().reset_model(action=self._scroll_to_bottom)
+        self._scroll_to_bottom()
+
         if self._scroll_to_bottom not in self._after_scroll_range_change_actions:
             self._after_scroll_range_change_actions.append(self._scroll_to_bottom)
-
-        self.model().reset_model(action=self._scroll_to_bottom)
 
     def _scroll_to_bottom(self):
         maximum = self.verticalScrollBar().maximum()
@@ -77,6 +83,7 @@ class ListView(QListView):
         self.scroll.setValue(self.scroll.maximum())
 
     def scroll_to_state(self, maximum):
+        print('[ scroll_to_state ]')
         self._scroll_before_load_state = maximum
         if self._scroll_to_state not in self._after_scroll_range_change_actions:
             self._after_scroll_range_change_actions.append(self._scroll_to_state)
@@ -111,7 +118,7 @@ class ListView(QListView):
         self._current_selection = _new_selection
         if self._selected_callback:
             self._selected_callback(_new_selection)
-        self.model().reset_model()
+        self.model().update_items()
 
     def on_scroll_changed(self, value):
         if self._scroll_ignore_value:
@@ -121,6 +128,17 @@ class ListView(QListView):
 
     def on_scroll_changed_real(self, value):
         self.move_custom_selection_for_scroll(value)
+        scroll: QScrollBar = self.verticalScrollBar()
+        self.need_scroll_to_bottom_on_messages = scroll.maximum() == value
+
+    @property
+    def need_scroll_to_bottom_on_messages(self):
+        return self._need_scroll_to_bottom_on_messages
+
+    @need_scroll_to_bottom_on_messages.setter
+    def need_scroll_to_bottom_on_messages(self, val):
+        self._need_scroll_to_bottom_on_messages = val
+        print('!!! need_scroll_to_bottom_on_messages -> {}'.format(val))
 
     def move_custom_selection_for_scroll(self, value):
         last_scroll = self._scroll_last_value
@@ -158,7 +176,7 @@ class ListView(QListView):
         self.scroll.resize(10, self.height())
         model = self.model()
         if model:
-            model.reset_model()
+            model.update_items()
         return ret
 
     def mousePressEvent(self, e):
@@ -177,6 +195,10 @@ class ListView(QListView):
                 delegate.on_custom_selection_changed(self._custom_selection)
 
         return super().mousePressEvent(e)
+
+    @property
+    def delegate(self):
+        return self.itemDelegate()
 
     def e_mody(self, e):
         try:
@@ -726,7 +748,8 @@ class ListDelegate(QItemDelegate):
         if changed:
             self.update_cursor()
             if not will_model_reseted:
-                self.list_model.reset_model()
+                #self.list_model.reset_model()
+                self.list_model.update_items()
 
     def on_mouse_release(self, e):
         pass
@@ -893,7 +916,13 @@ class ListModel(QAbstractListModel):
     def make_menu(self, item):
         pass
 
-    def reset_model(self, action='_reset_model_do_action'):
+    def update_items(self):
+        pass # FIXME !!!
+
+    def reset_model(self, action='_reset_model_do_action', change_need_to_bottom=True):
+        if change_need_to_bottom:
+            self.listView.need_scroll_to_bottom_on_messages = True
+
         if action not in self._reset_actions:
             self._reset_actions.append(action)
 
@@ -914,18 +943,8 @@ class ListModel(QAbstractListModel):
         func()
 
     def _reset_model_do_action(self):
-        #print('_reset_model_do_action', datetime.now())
-        #temp_indx = self.delegate.listView.selectedIndexes()
-
         self.beginResetModel()
         self.endResetModel()
-
-        # item_selection = QItemSelection()
-        # for i in temp_indx:
-        #     item_selection.select(i, i)
-        #
-        # self.delegate.listView.selectionModel().select(item_selection, QItemSelectionModel.Select)
-
 
 class ChatsModel(ListModel):
 
@@ -1108,13 +1127,6 @@ class MessagesListDelegate(ListDelegate):
 
             if type(lines) == LoadMessagesButton:
                 self.start_load_last_20()
-                # min_message_id = self.get_min_message_id()
-                # if self.last_load_min_message_id != min_message_id:
-                #     val, maximum = self.listView.verticalScrollBar().value(), self.listView.verticalScrollBar().maximum()
-                #     #self.listView.scroll.setValue(50)
-                #     self.listView.scroll_to_state(maximum)
-                #     self.last_load_min_message_id = min_message_id
-                #     self.list_model.on_need_download_20(min_message_id)
 
         else:
             selected_text = None
@@ -1317,7 +1329,7 @@ class MessagesListDelegate(ListDelegate):
         return ret
 
     def on_custom_selection_changed(self, custom_selection):
-        self.list_model.reset_model()
+        self.list_model.update_items()
         return True
 
     def _is_under_mouse(self, item):

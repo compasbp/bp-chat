@@ -138,7 +138,7 @@ class ListView(QListView):
     @need_scroll_to_bottom_on_messages.setter
     def need_scroll_to_bottom_on_messages(self, val):
         self._need_scroll_to_bottom_on_messages = val
-        print('!!! need_scroll_to_bottom_on_messages -> {}'.format(val))
+        #print('!!! need_scroll_to_bottom_on_messages -> {}'.format(val))
 
     def move_custom_selection_for_scroll(self, value):
         last_scroll = self._scroll_last_value

@@ -214,9 +214,6 @@ class WordsLine(LineBase, list):
 
             selected_aa = []
             for a, a_w in zip(w, w.widths):
-                # r = mes_drawer.metrics.boundingRect(0, 0, 9999, 9999, Qt.Horizontal,
-                #                                 a)  # painter.boundingRect(QRectF(0, 0, 500, 500), a)
-
                 a_right = a_left + a_w
 
                 if sel_start and sel_end:

@@ -15,7 +15,7 @@ from bp_chat.gui.core.draw import draw_badges, get_round_mask, color_from_hex
 from .funcs import item_from_object
 from .drawers import (MessageDrawer, WordsLine, FileLine, QuoteAuthor, QuoteLine, QuoteFile, WORD_TYPE_LINK,
                         LINE_TYPE_FILE)
-from ..core.draw import pixmap_from_file, icon_from_file, IconDrawer
+from ..core.draw import pixmap_from_file, icon_from_file, IconDrawer, draw_icon_from_file
 from bp_chat.core.files_map import getDownloadsFilePath, FilesMap
 
 
@@ -630,7 +630,6 @@ class ListDelegate(QItemDelegate):
                 pixmap = pixmap.scaledToWidth(32/50*iw, Qt.SmoothTransformation)
             sz = pixmap.size()
             actual_size = (sz.width(), sz.height())
-            #painter.drawImage(QPointF(left + 8 + _image_left_add, top + 8), pixmap.toImage())
             self.icon_drawer.draw_pixmap(painter, pixmap, (left + 8 + self.image_left_add(), top + 8), size=(iw, iw),
                     under_mouse=self._is_under_mouse(item),
                     icon_size=(iw, iw), actual_size=actual_size, alpha=1.0)
@@ -1255,10 +1254,10 @@ class MessagesListDelegate(ListDelegate):
         current_user_id = self.list_model.get_current_user_id()
 
         if current_user_id == message.sender_id:
-            delivered_icon = icon_from_file("check")
+            delivered_icon = "check"
 
             if message.getDelivered():
-                delivered_icon = icon_from_file("check_all")
+                delivered_icon = "check_all"
 
         return delivered_icon
 
@@ -1291,10 +1290,14 @@ class MessagesListDelegate(ListDelegate):
         padding_y = 5
 
         # render icon delivered
-        if delivered_icon is not None:
-            icon_pixmap = delivered_icon.pixmap(QSize(QFontMetrics(font).height(), QFontMetrics(font).height()))
-            painter.drawImage(QPointF(right - (QFontMetrics(font).height() + padding_x), #+ self.listView.width_add,
-                                      bottom - font_h - padding_y), icon_pixmap.toImage())  # FIXME 5...
+        if delivered_icon:
+            # icon_pixmap = delivered_icon.pixmap(QSize(QFontMetrics(font).height(), QFontMetrics(font).height()))
+            # painter.drawImage(QPointF(right - (QFontMetrics(font).height() + padding_x), #+ self.listView.width_add,
+            #                           bottom - font_h - padding_y), icon_pixmap.toImage())  # FIXME 5...
+            deliv_sz = (16, 16)
+            draw_icon_from_file(painter, delivered_icon,
+                                right - (deliv_sz[0] + padding_x), bottom - deliv_sz[1] - padding_y,
+                                w=deliv_sz[0], h=deliv_sz[1])
 
         date_text = "{}".format(message.getTimeString())
         date_text_width = QFontMetrics(font).width(date_text)

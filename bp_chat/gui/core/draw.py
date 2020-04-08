@@ -1,11 +1,16 @@
 from os.path import abspath
 
 from PyQt5.QtGui import (QColor, QFont, QPainter, QLinearGradient, QBrush, QRadialGradient,
-                         QBitmap, QIcon, QPixmap)
+                         QBitmap, QIcon, QPixmap, QPalette)
 from PyQt5.QtCore import (QPointF, Qt, QPoint, QRect, QRectF, QSize, QAbstractAnimation,
                           pyqtSignal, QEvent)
 from PyQt5.QtWidgets import QWidget
 
+DRAW_ICON_FROM_QRC = False
+
+def set_DRAW_ICON_FROM_QRC(val):
+    global DRAW_ICON_FROM_QRC
+    DRAW_ICON_FROM_QRC = val
 
 def set_widget_background(widget, color):
     if type(color) == str:
@@ -197,6 +202,11 @@ def color_from_hex(hex_color):
         hex_color = QColor(hex_color)
     return hex_color
 
+def draw_icon_from_file(painter, name, left, top, w=16, h=16):
+    icon = icon_from_file(name)
+    pixmap = icon.pixmap(QSize(w, h))
+    painter.drawImage(QPointF(left, top),
+                      pixmap.toImage())
 
 def pixmap_from_file(icon_name, to_width, to_height):
     icon = icon_from_file(icon_name)
@@ -210,8 +220,10 @@ def icon_from_file(icon_name):
                  icon_name + ".png")
 
 def path_to_images():
-    #return ':/images/data/images/'
-    return abspath('data/images/')
+    if DRAW_ICON_FROM_QRC:
+        return ':/images/data/images/'
+    else:
+        return abspath('data/images/')
 
 
 class IconDrawer:
@@ -355,3 +367,100 @@ class LoadAnimationWidget(QWidget):
         painter.setPen((c))
         painter.setBrush(QColor('#ff0000'))
         painter.drawEllipse(QRectF(0, 0, self.width(), self.height()))
+
+
+def pixmap_from_icon_rounded(icon, to_size=(50, 50), mask_func=None, border_radius=None):
+    availableSizes = icon.availableSizes()
+    if len(availableSizes) == 0:
+        return None
+
+    sz = availableSizes[0]
+    sz_w, sz_h = sz.width(), sz.height()
+    _w, _h = to_size
+
+    if sz_w != sz_h:
+        if sz_w > sz_h:
+            _w = int(round(float(_w) * sz_w / sz_h))
+        else:
+            _h = int(round(float(_h) * sz_h / sz_w))
+
+    pixmap = pixmap_from_icon(icon, _w*5, _h*5)
+    sz = pixmap.size()
+    _w2, _h2 = sz.width(), sz.height()
+    if _w2 > _h2:
+        _image_left_add = - int((_w2 - _h2) / 2)
+
+    to_5 = (min(_w2, _h2), min(_w2, _h2))
+    _factor = int(round(float(to_5[0]) / 50.0))
+    if border_radius:
+        border_radius *= _factor
+    if mask_func:
+        pixmap.setMask(mask_func(size=(_w2, _h2), to_size=(to_size[0]*5,to_size[1]*5)))
+    else:
+        pixmap.setMask(get_round_mask(size=(_w2, _h2), to_size=to_5, border_radius=border_radius))
+
+    pixmap = pixmap.scaled(QSize(_w, _h), Qt.IgnoreAspectRatio, Qt.SmoothTransformation)
+
+    return pixmap
+
+def change_widget_background_color(widget, color):
+    palette = widget.palette()
+    palette.setColor(widget.backgroundRole(), color)
+    widget.setPalette(palette)
+    widget.setAutoFillBackground(True)
+    return palette
+
+def draw_pixmap_file(painter, icon_name, left, top, width, height):
+    pixmap = pixmap_from_file(icon_name, width, height)
+    if pixmap:
+        painter.drawImage(QPointF(left, top), pixmap.toImage())
+
+def draw_text(painter, text, left, top, align='left', valign='bottom'):
+    r = painter.boundingRect(QRectF(0, 0, 9999, 9999), text)
+    w, h = r.width(), r.height()
+
+    if align == 'center':
+        left = left - w/2
+    if valign == 'center':
+        top = top - h/2
+
+    painter.drawText(left, top, text)
+
+def change_widget_text_color(widget, color):
+    palette = widget.palette()
+    palette.setColor(QPalette.WindowText, color)
+    widget.setPalette(palette)
+    return palette
+
+def change_widget_font(widget, font_size, font_family="Arial", bold=False):
+    font = widget.font()
+    font.setPointSize(font_size)
+    font.setBold(bold)
+    font.setFamily(font_family)
+    widget.setFont(font)
+    return font
+
+def draw_badges_on_icon(icon, badges, only_dot=False, muted=False):
+    if badges <= 0:
+        return icon
+    pix = icon.pixmap(QSize(150, 150))
+    painter = QPainter(pix)
+    if only_dot:
+        draw_dot(painter, left=10, top=35, factor=3, muted=muted)
+    else:
+        draw_badges(painter, badges, left=50, top=70, font_pixel_size=64, factor=7, muted=muted)
+    painter.end()
+    icon = QIcon(pix)
+    return icon
+
+def draw_dot(painter, left, top, factor=1, muted=False):
+    main_color = QColor(150, 150, 150) if muted else QColor(255, 100, 100)
+    secon_color = QColor(50, 50, 50) if muted else QColor(150, 50, 50)
+
+    painter.setPen(secon_color)
+    pen = painter.pen()
+    pen.setWidth(factor*3)
+    painter.setPen(pen)
+
+    painter.setBrush(main_color) #255, 100, 100))
+    painter.drawEllipse(QPointF(left + 6 * factor, top - 3 * factor), 8 * factor, 8 * factor)

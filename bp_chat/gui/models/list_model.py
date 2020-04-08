@@ -17,6 +17,7 @@ from .drawers import (MessageDrawer, WordsLine, FileLine, QuoteAuthor, QuoteLine
                         LINE_TYPE_FILE)
 from ..core.draw import pixmap_from_file, icon_from_file, IconDrawer, draw_icon_from_file
 from bp_chat.core.files_map import getDownloadsFilePath, FilesMap
+from .element_parts import PHLayout, PChatImage, PVLayout, PLogin, PLastMessage, PLastTime, PChatDownLine
 
 
 def print_timeit(func):
@@ -364,6 +365,15 @@ class ListDelegate(QItemDelegate):
     _mouse_on_name = None
     _mouse_on_link = None
 
+    _PARTS = PHLayout(
+        PChatImage(margin_left=5, margin_top=5, margin_right=5),
+        PVLayout(
+            PHLayout(PLogin(), PLastTime()),
+            PLastMessage(),
+            PChatDownLine()
+        )
+    )
+
     def __init__(self, listView, list_model):
         super().__init__(listView)
 
@@ -397,43 +407,45 @@ class ListDelegate(QItemDelegate):
 
         item = self.list_model.data(index)
 
-        need_draw_image_and_title = self.need_draw_image_and_title(item)
+        self._PARTS.draw(painter, self, item, (left, top, right, bottom))
 
-        self.fillRect(painter, item, index.row(), option)
-
-        if need_draw_image_and_title:
-            self.drawRound(painter, item, left, top)
-            self.drawImage(painter, item, left, top)
-            self.drawStatus(painter, item, left, top)
-
-        self.drawMessage(painter, item, (left, top, right, bottom))
-
-        if type(item.item) == LoadMessagesButton:
-            return
-
-        painter.setPen(QColor(150, 150, 150))
-
-        time_string_left = self.draw_right_text(painter, item, (left, top, right, bottom))
-
-        pen, font = self.prepare_pen_and_font_for_name(painter, item)
-        painter.setPen(pen)
-        painter.setFont(font)
-
-        if need_draw_image_and_title:
-            self.draw_name(painter, item, left, top, time_string_left)
-
-        # draw badges
-        badges_count = self.list_model.getItemBadgesCount(item)
-        if badges_count > 0:
-            draw_badges(painter, badges_count, left + 39 + 8, top + 20 + 8 - 6, muted=self.list_model.getMuted(item))
-
-        painter.setPen(QColor(220, 220, 220))
-
-        self.draw_down_line(painter, left, bottom, right)
-
-        main_draw_results = (time_string_left, self.list_model.getRightAdd())
-
-        self.list_model.customDraw(painter, item, (left, top, right, bottom), main_draw_results)
+        # need_draw_image_and_title = self.need_draw_image_and_title(item)
+        #
+        # self.fillRect(painter, item, index.row(), option)
+        #
+        # if need_draw_image_and_title:
+        #     self.drawRound(painter, item, left, top)
+        #     self.drawImage(painter, item, left, top)
+        #     self.drawStatus(painter, item, left, top)
+        #
+        # self.drawMessage(painter, item, (left, top, right, bottom))
+        #
+        # if type(item.item) == LoadMessagesButton:
+        #     return
+        #
+        # painter.setPen(QColor(150, 150, 150))
+        #
+        # time_string_left = self.draw_right_text(painter, item, (left, top, right, bottom))
+        #
+        # pen, font = self.prepare_pen_and_font_for_name(painter, item)
+        # painter.setPen(pen)
+        # painter.setFont(font)
+        #
+        # if need_draw_image_and_title:
+        #     self.draw_name(painter, item, left, top, time_string_left)
+        #
+        # # draw badges
+        # badges_count = self.list_model.getItemBadgesCount(item)
+        # if badges_count > 0:
+        #     draw_badges(painter, badges_count, left + 39 + 8, top + 20 + 8 - 6, muted=self.list_model.getMuted(item))
+        #
+        # painter.setPen(QColor(220, 220, 220))
+        #
+        # self.draw_down_line(painter, left, bottom, right)
+        #
+        # main_draw_results = (time_string_left, self.list_model.getRightAdd())
+        #
+        # self.list_model.customDraw(painter, item, (left, top, right, bottom), main_draw_results)
 
     def draw_right_text(self, painter, item, left_top_right_bottom):
         left, top, right, bottom = left_top_right_bottom
@@ -463,13 +475,6 @@ class ListDelegate(QItemDelegate):
         painter.drawText(_name_left, self.title_top(top), _name)
 
         if _nick and _nick != _name:
-            # font = painter.font()
-            # font.setPixelSize(10)
-            # painter.setFont(font)
-            # r = painter.boundingRect(QRectF(left, 0, 9999, 50), _nick)
-            # w = r.width()
-            # left = left + 34 - w/2
-            #painter.drawText(left, top+55, _nick)
             draw_badges(painter, _nick, left+34, top+55, font_pixel_size=10,
                         bcolor='#7777cc', plus=False, factor=0.6)
 

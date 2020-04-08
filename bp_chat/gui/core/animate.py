@@ -5,11 +5,12 @@ from PyQt5.QtWidgets import (QDialog, QApplication, QPushButton, QWidget, QVBoxL
 from PyQt5.QtCore import (QPropertyAnimation, QAbstractAnimation, QRect, QParallelAnimationGroup, Qt, QPoint, QSize,
                           QEvent, pyqtSignal)
 from PyQt5.QtGui import QColor, QLinearGradient, QPainter, QBrush, QIcon
-# import winrt.windows.ui.notifications as notifications
-# import winrt.windows.data.xml.dom as dom
 
-from threading import Timer
-import win32gui, win32con, win32process, win32api
+from sys import platform
+if platform.startswith('win'):
+    import win32gui, win32con, win32process, win32api
+else:
+    win32gui = win32con = None
 
 from .draw import draw_rounded_form, draw_shadow_down, draw_shadow_round, set_widget_background
 
@@ -179,11 +180,12 @@ class SystemTrayIcon(QSystemTrayIcon):
 
         print("HWND:", HWND, "winId", int(self.parent_widget.winId()))
 
-        win32gui.ShowWindow(HWND, win32con.SW_RESTORE)
-        win32gui.SetWindowPos(HWND, win32con.HWND_NOTOPMOST, 0, 0, 0, 0, win32con.SWP_NOMOVE | win32con.SWP_NOSIZE)
-        win32gui.SetWindowPos(HWND, win32con.HWND_TOPMOST, 0, 0, 0, 0, win32con.SWP_NOMOVE | win32con.SWP_NOSIZE)
-        win32gui.SetWindowPos(HWND, win32con.HWND_NOTOPMOST, 0, 0, 0, 0,
-                              win32con.SWP_SHOWWINDOW | win32con.SWP_NOMOVE | win32con.SWP_NOSIZE)
+        if win32gui:
+            win32gui.ShowWindow(HWND, win32con.SW_RESTORE)
+            win32gui.SetWindowPos(HWND, win32con.HWND_NOTOPMOST, 0, 0, 0, 0, win32con.SWP_NOMOVE | win32con.SWP_NOSIZE)
+            win32gui.SetWindowPos(HWND, win32con.HWND_TOPMOST, 0, 0, 0, 0, win32con.SWP_NOMOVE | win32con.SWP_NOSIZE)
+            win32gui.SetWindowPos(HWND, win32con.HWND_NOTOPMOST, 0, 0, 0, 0,
+                                  win32con.SWP_SHOWWINDOW | win32con.SWP_NOMOVE | win32con.SWP_NOSIZE)
 
     def iconActivated(self, reason):
         if reason == QSystemTrayIcon.Trigger:

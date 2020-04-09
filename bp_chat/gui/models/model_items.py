@@ -86,6 +86,20 @@ class ChatItem(ListModelItem, ColoredItem):
     def getColor(self):
         return self.color
 
+    def getStatusColor(self):
+        if self.chat.is_private():
+            if self.chat.user.is_online():
+                if self.chat.user.is_sleep():
+                    return (249, 177, 53)
+                else:
+                    return (84, 213, 84)
+            else:
+                return (190, 190, 190)
+        return None
+
+    def isSelectedItem(self):
+        return self.chat.is_selected_chat()
+
 
 class MessageItem(ListModelItem):
 

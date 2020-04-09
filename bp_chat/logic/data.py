@@ -61,6 +61,9 @@ class Chat:
         key = max(keys)
         return self.messages[key]
 
+    def is_selected_chat(self):
+        return False
+
 
 class Message:
 

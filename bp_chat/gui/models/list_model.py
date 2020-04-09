@@ -3,7 +3,7 @@ from PyQt5.QtWidgets import (QItemDelegate, QListView, QFrame, QStyledItemDelega
                              QAbstractItemView, QApplication, QScrollBar, QGraphicsOpacityEffect)
 from PyQt5.QtGui import (QColor, QPainter, QFont, QFontMetrics, QPixmap, QCursor, QPen, QGuiApplication, QFontMetricsF)
 from PyQt5.QtCore import (QAbstractListModel, QSize, QPointF, QPoint, QRectF, QRect, pyqtSignal, QEvent, Qt, QItemSelection,
-                          QItemSelectionModel, QPropertyAnimation, QEasingCurve)
+                          QItemSelectionModel, QPropertyAnimation, QEasingCurve, QPersistentModelIndex)
 
 from threading import Timer
 from copy import copy
@@ -14,10 +14,18 @@ from sys import platform, argv
 from bp_chat.gui.core.draw import draw_badges, get_round_mask, color_from_hex
 from .funcs import item_from_object
 from .drawers import (MessageDrawer, WordsLine, FileLine, QuoteAuthor, QuoteLine, QuoteFile, WORD_TYPE_LINK,
-                        LINE_TYPE_FILE)
+                      LINE_TYPE_FILE)
 from ..core.draw import pixmap_from_file, icon_from_file, IconDrawer, draw_icon_from_file
 from bp_chat.core.files_map import getDownloadsFilePath, FilesMap
-from .element_parts import PHLayout, PChatImage, PVLayout, PLogin, PLastMessage, PLastTime, PChatDownLine
+from .element_parts import (PHLayout, PChatImage, PVLayout, PLogin, PLastMessage, PLastTime, PChatDownLine, PStretch,
+                            PChatLayout)
+
+
+NEED_DRAW_PPARTS = False
+
+def set_NEED_DRAW_PPARTS(val):
+    global NEED_DRAW_PPARTS
+    NEED_DRAW_PPARTS = val
 
 
 def print_timeit(func):
@@ -36,90 +44,35 @@ def print_timeit(func):
 class ListView(QListView):
 
     _selected_callback = None
+    _scroll_ignore_value = False
     _scroll_animation = None
     _scroll_show_animation = None
-    _scroll_ignore_value = False
-    _scroll_before_load_state = None
-    _need_scroll_to_bottom_on_messages = False
+
+    last_item_at = None
+    _entered = False
 
     def __init__(self, parent=None):
         super().__init__(parent)
 
-        self._after_scroll_range_change_actions = []
-        self._current_selection = []
+        self.setMouseTracking(True)
 
         self.setFrameShape(QFrame.NoFrame)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
+
         scroll: QScrollBar = self.verticalScrollBar()
         scroll.setPageStep(10)
         scroll.setSingleStep(10)
-        self.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
-        self.setMouseTracking(True)
-        self.setSelectionMode(QAbstractItemView.NoSelection)
-
-        self._custom_selection = CustomSelection()
-        self._scroll_last_value = 0
 
         self.scroll = QScrollBar(self)
-        #self.scroll.setWindowOpacity(0)
+        # self.scroll.setWindowOpacity(0)
         self.scroll.valueChanged.connect(self.on_scroll_changed)
         scroll.rangeChanged.connect(self.on_scroll_range_changed)
         scroll.valueChanged.connect(self.on_scroll_changed_real)
 
-    def scroll_to_bottom(self):
-        print('[ scroll_to_bottom ]') # FIXME
-        # if self._scroll_to_bottom not in self._after_scroll_range_change_actions:
-        #     self._after_scroll_range_change_actions.append(self._scroll_to_bottom)
-        #
-        # self.model().reset_model(action=self._scroll_to_bottom)
-        self._scroll_to_bottom()
-
-        if self._scroll_to_bottom not in self._after_scroll_range_change_actions:
-            self._after_scroll_range_change_actions.append(self._scroll_to_bottom)
-
-    def _scroll_to_bottom(self):
-        maximum = self.verticalScrollBar().maximum()
-        print('_scroll_to_bottom', maximum, self.scroll.maximum())
-        self.scroll.setValue(self.scroll.maximum())
-
-    def scroll_to_state(self, maximum):
-        print('[ scroll_to_state ]')
-        self._scroll_before_load_state = maximum
-        if self._scroll_to_state not in self._after_scroll_range_change_actions:
-            self._after_scroll_range_change_actions.append(self._scroll_to_state)
-
-    def _scroll_to_state(self):
-        maximum = self._scroll_before_load_state
-        if maximum == None:
-            return
-        self._scroll_before_load_state = None
-        scroll_maximum = self.scroll.maximum()
-        new_value = scroll_maximum - maximum
-        if self.scroll.maximum() > maximum:
-            self.scroll.setValue(new_value)
-
-    def showEvent(self, *args, **kwargs):
-        ret = super().showEvent(*args, **kwargs)
-        self.animate_scroll_show(show=False, time=100)
-        return ret
-
     def set_selected_callback(self, callback):
         self._selected_callback = callback
-
-    def selectionChanged(self, selectedSelection, deselectedSelection):
-        lst = selectedSelection.indexes()
-        if len(lst) > 0 and len(self.model()._keys_list) == 0:
-            lst = []
-        _new_selection = [ind.data() for ind in lst]
-        if self._current_selection == _new_selection:
-            return
-
-    def change_selection(self, _new_selection):
-        self._current_selection = _new_selection
-        if self._selected_callback:
-            self._selected_callback(_new_selection)
-        self.model().update_items()
 
     def on_scroll_changed(self, value):
         if self._scroll_ignore_value:
@@ -128,156 +81,7 @@ class ListView(QListView):
         scroll.setValue(value)
 
     def on_scroll_changed_real(self, value):
-        self.move_custom_selection_for_scroll(value)
-        scroll: QScrollBar = self.verticalScrollBar()
-        self.need_scroll_to_bottom_on_messages = scroll.maximum() == value
-
-    @property
-    def need_scroll_to_bottom_on_messages(self):
-        return self._need_scroll_to_bottom_on_messages
-
-    @need_scroll_to_bottom_on_messages.setter
-    def need_scroll_to_bottom_on_messages(self, val):
-        self._need_scroll_to_bottom_on_messages = val
-        #print('!!! need_scroll_to_bottom_on_messages -> {}'.format(val))
-
-    def move_custom_selection_for_scroll(self, value):
-        last_scroll = self._scroll_last_value
-        d = value - last_scroll
-
-        custom_selection: CustomSelection = self._custom_selection
-        sel_start = custom_selection.start
-        sel_end = custom_selection.end
-
-        if sel_start:
-            custom_selection.start = (sel_start[0], sel_start[1] - d)
-        if sel_end:
-            custom_selection.end = (sel_end[0], sel_end[1] - d)
-
-        self._scroll_last_value = value
-
-    def on_scroll_range_changed(self, _min, _max):
-        print('!!! on_scroll_range_changed', self.scroll.value(), self.scroll.maximum(), '->', _max)
-        # last_max = self.scroll.maximum()
-        # new_scroll_value = int(round(_max * self._scroll_last_value / self.scroll.maximum()))
-
-        self.scroll.setRange(_min, _max)
-
-        # if new_scroll_value != self._scroll_last_value:
-        #     self.move_custom_selection_for_scroll(new_scroll_value)
-
-        self._after_scroll_range_change_actions, actions = [], self._after_scroll_range_change_actions
-        for action in actions:
-            func = getattr(self, action) if type(action) == str else action
-            func()
-
-    def resizeEvent(self, e):
-        ret = super().resizeEvent(e)
-        self.scroll.move(self.width() - 10, 0)
-        self.scroll.resize(10, self.height())
-        model = self.model()
-        if model:
-            model.update_items()
-        return ret
-
-    def mousePressEvent(self, e):
-        delegate = self.itemDelegate()
-
-        if e.button() == Qt.LeftButton:
-
-            mody = self.e_mody(e)
-            if mody != Qt.ControlModifier:
-                self._current_selection = []
-
-                self._custom_selection.active = True
-                self._custom_selection.start = (e.pos().x(), e.pos().y())
-                self._custom_selection.end = None
-
-                delegate.on_custom_selection_changed(self._custom_selection)
-
-        return super().mousePressEvent(e)
-
-    @property
-    def delegate(self):
-        return self.itemDelegate()
-
-    def e_mody(self, e):
-        try:
-            return int(e.modifiers())
-        except:
-            return 0
-
-    def mouseMoveEvent(self, e):
-
-        delegate = self.itemDelegate()
-        pos = (e.pos().x(), e.pos().y())
-
-        will_model_reseted = False
-        if self._custom_selection.active:
-            self._custom_selection.end = pos
-
-            will_model_reseted = delegate.on_custom_selection_changed(self._custom_selection)
-
-        delegate.on_mouse_pos_changed(pos, will_model_reseted=will_model_reseted)
-
-        return super().mouseMoveEvent(e)
-
-    def mouseReleaseEvent(self, e):
-
-        #was_custom_active = self._custom_selection.active
-        self._custom_selection.active = False
-        delegate = self.itemDelegate()
-
-        _cur_selected = self.indexAt(e.pos()).data()
-        _current_selection = self._current_selection
-
-        if e.button() == Qt.RightButton:
-            if _cur_selected:
-                if _cur_selected not in _current_selection and len(_current_selection) == 1:
-                    _current_selection.clear()
-                    _current_selection.append(_cur_selected)
-
-            self.open_menu_for_selected_item(e.globalPos())
-
-        elif e.button() == Qt.LeftButton:
-            mody = self.e_mody(e)
-
-            if _cur_selected:
-                if _cur_selected in _current_selection:
-                    if mody == Qt.ControlModifier:
-                        _current_selection.remove(_cur_selected)
-                else:
-                    _current_selection.append(_cur_selected)
-
-            if mody == Qt.ControlModifier and self._custom_selection.end != None:
-                self._custom_selection.end = None
-                delegate.on_custom_selection_changed(self._custom_selection)
-
-            self.change_selection(_current_selection)
-
-        delegate.on_mouse_release(e)
-
-        return super().mouseReleaseEvent(e)
-
-    def enterEvent(self, e):
-
-        delegate = self.itemDelegate()
-        pos = (e.pos().x(), e.pos().y())
-
-        delegate.on_mouse_pos_changed(pos)
-
-        self.animate_scroll_show(show=True)
-
-        return super().enterEvent(e)
-
-    def leaveEvent(self, e):
-
-        delegate = self.itemDelegate()
-        delegate.on_mouse_pos_changed((-1, -1))
-
-        self.animate_scroll_show(show=False)
-
-        return super().leaveEvent(e)
+        pass
 
     def wheelEvent(self, e):
         dy = e.pixelDelta().y()
@@ -319,8 +123,7 @@ class ListView(QListView):
 
         self._scroll_animation.start()
 
-        #self.move_custom_selection_for_scroll(new_value)
-
+        # self.move_custom_selection_for_scroll(new_value)
 
     def animate_scroll_show(self, show=True, time=500):
         if self._scroll_show_animation:
@@ -338,6 +141,305 @@ class ListView(QListView):
         animation.setEndValue(end)
         animation.start()
 
+    def on_scroll_range_changed(self, _min, _max):
+        print('!!! on_scroll_range_changed', self.scroll.value(), self.scroll.maximum(), '->', _max)
+        self.scroll.setRange(_min, _max)
+
+    def showEvent(self, *args, **kwargs):
+        ret = super().showEvent(*args, **kwargs)
+        self.animate_scroll_show(show=False, time=100)
+        return ret
+
+    def resizeEvent(self, e):
+        ret = super().resizeEvent(e)
+        self.scroll.move(self.width() - 10, 0)
+        self.scroll.resize(10, self.height())
+        model = self.model()
+        if model:
+            model.update_items()
+        return ret
+
+    def enterEvent(self, e):
+        print('enterEvent')
+        self._entered = True
+        self.animate_scroll_show(show=True)
+        return super().enterEvent(e)
+
+    def leaveEvent(self, e):
+        print('leaveEvent')
+        self._entered = False
+        self.animate_scroll_show(show=False)
+        self.update_items_indexes(self.last_item_at)
+        # # self.model().layoutAboutToBeChanged.emit()
+        # # self.model().layoutChanged.emit()
+        # from threading import Timer
+        # t = getattr(self, '_t', None)
+        # if t:
+        #     t.cancel()
+        # self._t = Timer(3, self.reset_all)
+        # self._t.start()
+
+        return super().leaveEvent(e)
+
+    # def reset_all(self):
+    #     # self.model().layoutAboutToBeChanged.emit()
+    #     # self.model().layoutChanged.emit()
+    #     self.model().reset_model()
+
+    def mouseMoveEvent(self, e):
+
+        delegate = self.itemDelegate()
+        pos = (e.pos().x(), e.pos().y())
+
+        item_at = self.indexAt(QPoint(*pos))
+        if item_at.data():
+            self.last_item_at = item_at
+
+        delegate.on_mouse_pos_changed(pos)
+
+        return super().mouseMoveEvent(e)
+
+    def update_items_indexes(self, *lst):
+        lst = [QPersistentModelIndex(ind) for ind in lst]
+        self.model().layoutAboutToBeChanged.emit(lst)
+        self.model().layoutChanged.emit(lst)
+
+
+class ChatsListView(ListView):
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        self.setSelectionMode(QAbstractItemView.SingleSelection)
+
+    def selectionChanged(self, selectedSelection, deselectedSelection):
+        last = self.selection_to_list(deselectedSelection)
+        lst = self.selection_to_list(selectedSelection)
+        self._selected_callback(lst)
+
+    def selection_to_list(self, selectedSelection):
+        return [ind.data() for ind in selectedSelection.indexes()]
+
+    def clear_selection(self):
+        self.clearSelection()
+
+    def mousePressEvent(self, e):
+        _cur_selected = self.indexAt(e.pos()).data()
+        _current_selection = self.selectedIndexes()
+
+        if e.button() == Qt.RightButton:
+            e.ignore()
+            self.open_menu_for_selected_item(e.globalPos())
+        else:
+            return super().mousePressEvent(e)
+
+    def open_menu_for_selected_item(self, global_pos):
+        ind = self.indexAt(self.mapFromGlobal(global_pos))
+        item = ind.data()
+        print('[ open_menu_for_selected_item ] {}'.format(item))
+        menu = self.model().make_menu(item) if item else None
+        if menu:
+            menu.exec_(global_pos)
+
+
+class MessagesListView(ListView):
+
+    _scroll_before_load_state = None
+    _need_scroll_to_bottom_on_messages = False
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        self._after_scroll_range_change_actions = []
+        self._current_selection = []
+
+        self.setSelectionMode(QAbstractItemView.NoSelection)
+
+        self._custom_selection = CustomSelection()
+        self._scroll_last_value = 0
+
+    def scroll_to_bottom(self):
+        print('[ scroll_to_bottom ]')  # FIXME
+        # if self._scroll_to_bottom not in self._after_scroll_range_change_actions:
+        #     self._after_scroll_range_change_actions.append(self._scroll_to_bottom)
+        #
+        # self.model().reset_model(action=self._scroll_to_bottom)
+        self._scroll_to_bottom()
+
+        if self._scroll_to_bottom not in self._after_scroll_range_change_actions:
+            self._after_scroll_range_change_actions.append(self._scroll_to_bottom)
+
+    def _scroll_to_bottom(self):
+        maximum = self.verticalScrollBar().maximum()
+        print('_scroll_to_bottom', maximum, self.scroll.maximum())
+        self.scroll.setValue(self.scroll.maximum())
+
+    def scroll_to_state(self, maximum):
+        print('[ scroll_to_state ]')
+        self._scroll_before_load_state = maximum
+        if self._scroll_to_state not in self._after_scroll_range_change_actions:
+            self._after_scroll_range_change_actions.append(self._scroll_to_state)
+
+    def _scroll_to_state(self):
+        maximum = self._scroll_before_load_state
+        if maximum == None:
+            return
+        self._scroll_before_load_state = None
+        scroll_maximum = self.scroll.maximum()
+        new_value = scroll_maximum - maximum
+        if self.scroll.maximum() > maximum:
+            self.scroll.setValue(new_value)
+
+    def selectionChanged(self, selectedSelection, deselectedSelection):
+        lst = selectedSelection.indexes()
+        if len(lst) > 0 and len(self.model()._keys_list) == 0:
+            lst = []
+        _new_selection = [ind.data() for ind in lst]
+        if self._current_selection == _new_selection:
+            return
+
+    def change_selection(self, _new_selection):
+        self._current_selection = _new_selection
+        if self._selected_callback:
+            self._selected_callback(_new_selection)
+        self.model().update_items()
+
+    def move_custom_selection_for_scroll(self, value):
+        last_scroll = self._scroll_last_value
+        d = value - last_scroll
+
+        custom_selection: CustomSelection = self._custom_selection
+        sel_start = custom_selection.start
+        sel_end = custom_selection.end
+
+        if sel_start:
+            custom_selection.start = (sel_start[0], sel_start[1] - d)
+        if sel_end:
+            custom_selection.end = (sel_end[0], sel_end[1] - d)
+
+        self._scroll_last_value = value
+
+    def on_scroll_changed_real(self, value):
+        self.move_custom_selection_for_scroll(value)
+        scroll: QScrollBar = self.verticalScrollBar()
+        self.need_scroll_to_bottom_on_messages = scroll.maximum() == value
+
+    # def on_scroll_range_changed(self, _min, _max):
+    #     print('!!! on_scroll_range_changed', self.scroll.value(), self.scroll.maximum(), '->', _max)
+    #     # last_max = self.scroll.maximum()
+    #     # new_scroll_value = int(round(_max * self._scroll_last_value / self.scroll.maximum()))
+    #
+    #     self.scroll.setRange(_min, _max)
+    #
+    #     # if new_scroll_value != self._scroll_last_value:
+    #     #     self.move_custom_selection_for_scroll(new_scroll_value)
+    #
+    #     self._after_scroll_range_change_actions, actions = [], self._after_scroll_range_change_actions
+    #     for action in actions:
+    #         func = getattr(self, action) if type(action) == str else action
+    #         func()
+
+    def mousePressEvent(self, e):
+        delegate = self.itemDelegate()
+
+        if e.button() == Qt.LeftButton:
+
+            mody = self.e_mody(e)
+            if mody != Qt.ControlModifier:
+                self._current_selection = []
+
+                self._custom_selection.active = True
+                self._custom_selection.start = (e.pos().x(), e.pos().y())
+                self._custom_selection.end = None
+
+                delegate.on_custom_selection_changed(self._custom_selection)
+
+            self.update_items_indexes(self.indexAt(e.pos()))
+
+        return super().mousePressEvent(e)
+
+    @property
+    def delegate(self):
+        return self.itemDelegate()
+
+    def e_mody(self, e):
+        try:
+            return int(e.modifiers())
+        except:
+            return 0
+
+    def mouseMoveEvent(self, e):
+
+        delegate = self.itemDelegate()
+        pos = (e.pos().x(), e.pos().y())
+
+        will_model_reseted = False
+        if self._custom_selection.active:
+            self._custom_selection.end = pos
+
+            will_model_reseted = delegate.on_custom_selection_changed(self._custom_selection)
+
+            self.update_items_indexes(self.indexAt(QPoint(*pos)))
+
+        delegate.on_mouse_pos_changed(pos, will_model_reseted=will_model_reseted)
+
+        return super().mouseMoveEvent(e)
+
+    def mouseReleaseEvent(self, e):
+
+        # was_custom_active = self._custom_selection.active
+        self._custom_selection.active = False
+        delegate = self.itemDelegate()
+
+        _cur_selected = self.indexAt(e.pos()).data()
+        _current_selection = self._current_selection
+
+        if e.button() == Qt.RightButton:
+            if _cur_selected:
+                if _cur_selected not in _current_selection and len(_current_selection) == 1:
+                    _current_selection.clear()
+                    _current_selection.append(_cur_selected)
+
+            self.open_menu_for_selected_item(e.globalPos())
+
+        elif e.button() == Qt.LeftButton:
+            mody = self.e_mody(e)
+
+            if _cur_selected:
+                if _cur_selected in _current_selection:
+                    if mody == Qt.ControlModifier:
+                        _current_selection.remove(_cur_selected)
+                else:
+                    _current_selection.append(_cur_selected)
+
+            if mody == Qt.ControlModifier and self._custom_selection.end != None:
+                self._custom_selection.end = None
+                delegate.on_custom_selection_changed(self._custom_selection)
+
+            self.change_selection(_current_selection)
+
+            self.update_items_indexes(self.indexAt(e.pos()))
+
+        delegate.on_mouse_release(e)
+
+        return super().mouseReleaseEvent(e)
+
+    def enterEvent(self, e):
+
+        delegate = self.itemDelegate()
+        pos = (e.pos().x(), e.pos().y())
+
+        delegate.on_mouse_pos_changed(pos)
+
+        return super().enterEvent(e)
+
+    def leaveEvent(self, e):
+
+        delegate = self.itemDelegate()
+        delegate.on_mouse_pos_changed((-1, -1))
+
+        return super().leaveEvent(e)
+
     def clear_selection(self):
         self._current_selection = []
         self.clearSelection()
@@ -352,6 +454,14 @@ class ListView(QListView):
         if menu:
             menu.exec_(global_pos)
 
+    @property
+    def need_scroll_to_bottom_on_messages(self):
+        return self._need_scroll_to_bottom_on_messages
+
+    @need_scroll_to_bottom_on_messages.setter
+    def need_scroll_to_bottom_on_messages(self, val):
+        self._need_scroll_to_bottom_on_messages = val
+        # print('!!! need_scroll_to_bottom_on_messages -> {}'.format(val))
 
 
 class ListDelegate(QItemDelegate):
@@ -365,13 +475,18 @@ class ListDelegate(QItemDelegate):
     _mouse_on_name = None
     _mouse_on_link = None
 
-    _PARTS = PHLayout(
-        PChatImage(margin_left=5, margin_top=5, margin_right=5),
+    DEBUG = False
+
+    _PARTS = PChatLayout(
+        PChatImage(margin_left=8, margin_top=8, margin_right=8),
         PVLayout(
-            PHLayout(PLogin(), PLastTime()),
-            PLastMessage(),
-            PChatDownLine()
-        )
+            PStretch(debug=DEBUG),
+            PHLayout(PLogin(debug=DEBUG), PLastTime(debug=DEBUG)),
+            PLastMessage(margin_top=5, debug=DEBUG),
+            PStretch(debug=DEBUG),
+            PChatDownLine(debug=DEBUG),
+            margin_right=18
+        ), #debug=True
     )
 
     def __init__(self, listView, list_model):
@@ -407,45 +522,55 @@ class ListDelegate(QItemDelegate):
 
         item = self.list_model.data(index)
 
-        self._PARTS.draw(painter, self, item, (left, top, right, bottom))
+        #print(":::", id(item))
 
-        # need_draw_image_and_title = self.need_draw_image_and_title(item)
-        #
-        # self.fillRect(painter, item, index.row(), option)
-        #
-        # if need_draw_image_and_title:
-        #     self.drawRound(painter, item, left, top)
-        #     self.drawImage(painter, item, left, top)
-        #     self.drawStatus(painter, item, left, top)
-        #
-        # self.drawMessage(painter, item, (left, top, right, bottom))
-        #
-        # if type(item.item) == LoadMessagesButton:
-        #     return
-        #
-        # painter.setPen(QColor(150, 150, 150))
-        #
-        # time_string_left = self.draw_right_text(painter, item, (left, top, right, bottom))
-        #
-        # pen, font = self.prepare_pen_and_font_for_name(painter, item)
-        # painter.setPen(pen)
-        # painter.setFont(font)
-        #
-        # if need_draw_image_and_title:
-        #     self.draw_name(painter, item, left, top, time_string_left)
-        #
-        # # draw badges
-        # badges_count = self.list_model.getItemBadgesCount(item)
-        # if badges_count > 0:
-        #     draw_badges(painter, badges_count, left + 39 + 8, top + 20 + 8 - 6, muted=self.list_model.getMuted(item))
-        #
-        # painter.setPen(QColor(220, 220, 220))
-        #
-        # self.draw_down_line(painter, left, bottom, right)
-        #
-        # main_draw_results = (time_string_left, self.list_model.getRightAdd())
-        #
-        # self.list_model.customDraw(painter, item, (left, top, right, bottom), main_draw_results)
+        if NEED_DRAW_PPARTS and self._PARTS is not None:
+            bottom += 1
+            if self.DEBUG:
+                print("!!! top:{} bottom:{} h:{}".format(top, bottom, bottom-top))
+                painter.setPen(QColor(220, 20, 20))
+                painter.drawLine(left, bottom - 1, left + 50, bottom - 1)
+
+            self._PARTS.draw(painter, self, item, (left, top, right, bottom))
+
+        else:
+            need_draw_image_and_title = self.need_draw_image_and_title(item)
+
+            self.fillRect(painter, item, index.row(), option)
+
+            if need_draw_image_and_title:
+                self.drawRound(painter, item, left, top)
+                self.drawImage(painter, item, left, top)
+                self.drawStatus(painter, item, left, top)
+
+            self.drawMessage(painter, item, (left, top, right, bottom))
+
+            if type(item.item) == LoadMessagesButton:
+                return
+
+            painter.setPen(QColor(150, 150, 150))
+
+            time_string_left = self.draw_right_text(painter, item, (left, top, right, bottom))
+
+            pen, font = self.prepare_pen_and_font_for_name(painter, item)
+            painter.setPen(pen)
+            painter.setFont(font)
+
+            if need_draw_image_and_title:
+                self.draw_name(painter, item, left, top, time_string_left)
+
+            # draw badges
+            badges_count = self.list_model.getItemBadgesCount(item)
+            if badges_count > 0:
+                draw_badges(painter, badges_count, left + 39 + 8, top + 20 + 8 - 6, muted=self.list_model.getMuted(item))
+
+            painter.setPen(QColor(220, 220, 220))
+
+            self.draw_down_line(painter, left, bottom, right)
+
+            main_draw_results = (time_string_left, self.list_model.getRightAdd())
+
+            self.list_model.customDraw(painter, item, (left, top, right, bottom), main_draw_results)
 
     def draw_right_text(self, painter, item, left_top_right_bottom):
         left, top, right, bottom = left_top_right_bottom
@@ -647,6 +772,12 @@ class ListDelegate(QItemDelegate):
 
     def _is_mouse_on_name(self, item):
         return self._mouse_on_name == item
+
+    def is_on_item(self, item):
+        if not self.listView._entered:
+            return False
+        ind = self.listView.indexAt(QPoint(*self._mouse_pos))
+        return ind.data() == item
 
     def drawStatus(self, painter, item, left, top):
         pen = painter.pen()
@@ -924,6 +1055,7 @@ class ListModel(QAbstractListModel):
         pass # FIXME !!!
 
     def reset_model(self, action='_reset_model_do_action', change_need_to_bottom=True):
+        print('reset_model')
         if change_need_to_bottom:
             self.listView.need_scroll_to_bottom_on_messages = True
 
@@ -947,8 +1079,10 @@ class ListModel(QAbstractListModel):
         func()
 
     def _reset_model_do_action(self):
-        self.beginResetModel()
-        self.endResetModel()
+        # self.beginResetModel()
+        # self.endResetModel()
+        self.layoutAboutToBeChanged.emit()
+        self.layoutChanged.emit()
 
 class ChatsModel(ListModel):
 
@@ -1030,6 +1164,8 @@ class MessagesListDelegate(ListDelegate):
     #     message_top = top + 38
     #     return message_left, message_top
     last_load_min_message_id = None
+
+    _PARTS = None
 
     def prepare_base_left_top_right_bottom(self, option):
         ret = super().prepare_base_left_top_right_bottom(option)

@@ -18,7 +18,7 @@ from .drawers import (MessageDrawer, WordsLine, FileLine, QuoteAuthor, QuoteLine
 from ..core.draw import pixmap_from_file, icon_from_file, IconDrawer, draw_icon_from_file
 from bp_chat.core.files_map import getDownloadsFilePath, FilesMap
 from .element_parts import (PHLayout, PChatImage, PVLayout, PLogin, PLastMessage, PLastTime, PChatDownLine, PStretch,
-                            PChatLayout)
+                            PChatLayout, PMessageImage, PMessage, PMessageLayout)
 
 
 NEED_DRAW_PPARTS = False
@@ -524,6 +524,9 @@ class ListDelegate(QItemDelegate):
 
         #print(":::", id(item))
 
+        if type(item.item) == LoadMessagesButton:
+            return
+
         if NEED_DRAW_PPARTS and self._PARTS is not None:
             bottom += 1
             if self.DEBUG:
@@ -630,7 +633,7 @@ class ListDelegate(QItemDelegate):
         background_color = self.get_background_color(item)
 
         selected = False
-        selected_items = self.listView._current_selection or []
+        selected_items = getattr(self.listView, '_current_selection', None) or []
 
         if item in selected_items:
             _background_color = self.selected_color(selected_items)
@@ -1165,7 +1168,17 @@ class MessagesListDelegate(ListDelegate):
     #     return message_left, message_top
     last_load_min_message_id = None
 
-    _PARTS = None
+    _PARTS = PMessageLayout(
+        PMessageImage(margin_left=8, margin_top=8, margin_right=8),
+        PVLayout(
+            PLogin(),
+            PMessage(margin_top=5, debug=True),
+            #PStretch(debug=DEBUG),
+            #PChatDownLine(),
+            PHLayout(PStretch(height=2), PLastTime()),
+            margin_right=18, margin_top=5
+        ), debug=True
+    )
 
     def prepare_base_left_top_right_bottom(self, option):
         ret = super().prepare_base_left_top_right_bottom(option)

@@ -261,6 +261,11 @@ class PChatImage(PBase):
             return item_color
 
 
+class PMessageImage(PChatImage):
+    pass
+
+
+
 class PChatDownLine(PBase):
 
     def get_size(self, item):
@@ -275,7 +280,7 @@ class PChatDownLine(PBase):
 class PStretch(PBase):
 
     def get_size(self, item):
-        return None, None
+        return self.kwargs.get('width', None), self.kwargs.get('height', None)
 
 
 class PLogin(PBase):
@@ -362,6 +367,44 @@ class PLastMessage(PBase):
         return 12
 
 
+class PMessage(PBase):
+
+    def get_size(self, item):
+        return None, None
+
+    def _draw(self, painter: QPainter, delegate, item, rect_tuple: tuple):
+        left, top, right, bottom = rect_tuple
+
+        second_text = delegate.list_model.getItemSecondText(item)
+        if second_text:
+            #message_left, message_top = self.prepareMessageStartPosition(left, top)
+
+            # painter.setPen(self.text_color)
+            # painter.setFont(self.font)
+            painter.setPen(delegate.message_text_color())
+            font = delegate.prepareMessageFont()
+            painter.setFont(font)
+
+            left_top_right_bottom = (left, top+12, right, bottom)
+
+            _text = delegate.prepareMessageText(item, second_text, left_top_right_bottom)
+
+            delegate.drawMessageText(painter, _text, left_top_right_bottom, item)
+
+    def make_font(self):
+        font = super().make_font()
+        font.setBold(False)
+        return font
+
+    @property
+    def font_size(self):
+        return 12
+
+    @property
+    def text_color(self):
+        return QColor(150, 150, 150)
+
+
 class PLastTime(PBase):
 
     def get_size(self, item):
@@ -410,5 +453,18 @@ class PChatLayout(PHLayout):
 
         if background_color:
             painter.fillRect(QRectF(QPointF(left, top), QPointF(right, bottom)), background_color)
+
+        super()._draw(painter, delegate, item, rect_tuple)
+
+
+class PMessageLayout(PHLayout):
+
+    def _draw(self, painter: QPainter, delegate, item, rect_tuple: tuple):
+        left, top, right, bottom = rect_tuple
+
+        class option:
+            rect = QRectF(QPointF(left, top), QPointF(right, bottom))
+
+        delegate.fillRect(painter, item, None, option)
 
         super()._draw(painter, delegate, item, rect_tuple)

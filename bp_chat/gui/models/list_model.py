@@ -48,7 +48,7 @@ class ListView(QListView):
     _scroll_animation = None
     _scroll_show_animation = None
 
-    last_item_at = None
+    last_index_at = None
     _entered = False
 
     def __init__(self, parent=None):
@@ -169,7 +169,7 @@ class ListView(QListView):
         print('leaveEvent')
         self._entered = False
         self.animate_scroll_show(show=False)
-        self.update_items_indexes(self.last_item_at)
+        self.update_items_indexes(self.last_index_at)
         # # self.model().layoutAboutToBeChanged.emit()
         # # self.model().layoutChanged.emit()
         # from threading import Timer
@@ -191,9 +191,9 @@ class ListView(QListView):
         delegate = self.itemDelegate()
         pos = (e.pos().x(), e.pos().y())
 
-        item_at = self.indexAt(QPoint(*pos))
-        if item_at.data():
-            self.last_item_at = item_at
+        index_at = self.indexAt(QPoint(*pos))
+        if index_at.data():
+            self.last_index_at = index_at
 
         delegate.on_mouse_pos_changed(pos)
 
@@ -463,6 +463,7 @@ class MessagesListView(ListView):
         self._need_scroll_to_bottom_on_messages = val
         # print('!!! need_scroll_to_bottom_on_messages -> {}'.format(val))
 
+P_DEBUG = 'P_DEBUG' in argv
 
 class ListDelegate(QItemDelegate):
 
@@ -475,16 +476,14 @@ class ListDelegate(QItemDelegate):
     _mouse_on_name = None
     _mouse_on_link = None
 
-    DEBUG = False
-
     _PARTS = PChatLayout(
         PChatImage(margin_left=8, margin_top=8, margin_right=8),
         PVLayout(
-            PStretch(debug=DEBUG),
-            PHLayout(PLogin(debug=DEBUG), PLastTime(debug=DEBUG)),
-            PLastMessage(margin_top=5, debug=DEBUG),
-            PStretch(debug=DEBUG),
-            PChatDownLine(debug=DEBUG),
+            PStretch(),
+            PHLayout(PLogin(debug=P_DEBUG), PLastTime(debug=P_DEBUG)),
+            PLastMessage(margin_top=5, debug=P_DEBUG),
+            PStretch(),
+            PChatDownLine(debug=P_DEBUG),
             margin_right=18
         ), #debug=True
     )
@@ -529,7 +528,7 @@ class ListDelegate(QItemDelegate):
 
         if NEED_DRAW_PPARTS and self._PARTS is not None:
             bottom += 1
-            if self.DEBUG:
+            if P_DEBUG:
                 print("!!! top:{} bottom:{} h:{}".format(top, bottom, bottom-top))
                 painter.setPen(QColor(220, 20, 20))
                 painter.drawLine(left, bottom - 1, left + 50, bottom - 1)
@@ -760,7 +759,7 @@ class ListDelegate(QItemDelegate):
         if pixmap:
             pixmap: QPixmap
             if is_simple_icon:
-                pixmap = pixmap.scaledToWidth(32/50*iw, Qt.SmoothTransformation)
+                pixmap = pixmap.scaledToWidth(38/50*iw, Qt.SmoothTransformation) # 32
             sz = pixmap.size()
             actual_size = (sz.width(), sz.height())
             self.icon_drawer.draw_pixmap(painter, pixmap, (left + 8 + self.image_left_add(), top + 8), size=(iw, iw),
@@ -885,9 +884,17 @@ class ListDelegate(QItemDelegate):
 
         if changed:
             self.update_cursor()
-            if not will_model_reseted:
-                #self.list_model.reset_model()
-                self.list_model.update_items()
+            # if not will_model_reseted:
+            #     #self.list_model.reset_model()
+            #     self.list_model.update_items()
+
+            lst_to_update = []
+            if index:
+                lst_to_update.append(index)
+            if self.listView.last_index_at and self.listView.last_index_at != index:
+                lst_to_update.append(self.listView.last_index_at)
+            if len(lst_to_update) > 0:
+                self.listView.update_items_indexes(*lst_to_update)
 
     def on_mouse_release(self, e):
         pass
@@ -1169,15 +1176,15 @@ class MessagesListDelegate(ListDelegate):
     last_load_min_message_id = None
 
     _PARTS = PMessageLayout(
-        PMessageImage(margin_left=8, margin_top=8, margin_right=8),
+        PMessageImage(margin_left=8, margin_top=8, margin_right=8, margin_bottom=8, debug=P_DEBUG),
         PVLayout(
             PLogin(),
-            PMessage(margin_top=5, debug=True),
+            PMessage(margin_top=5, debug=P_DEBUG),
             #PStretch(debug=DEBUG),
             #PChatDownLine(),
             PHLayout(PStretch(height=2), PLastTime()),
             margin_right=18, margin_top=5
-        ), debug=True
+        ), debug=P_DEBUG
     )
 
     def prepare_base_left_top_right_bottom(self, option):
@@ -1516,18 +1523,24 @@ class MessagesListModel(ListModel):
         pass
 
     def getItemHeight(self, item, option):
-        right = option.rect.right()
-        message_left, message_top = self.delegate.prepareMessageStartPosition(0, 0)
 
-        left_top_right_bottom = message_left, message_top, right, 99999
+        #message_left, message_top = self.delegate.prepareMessageStartPosition(0, 0)
 
-        second_text = self.getItemSecondText(item)
-        if second_text:
-            message_height, new_lines = self.delegate.prepareMessageText(item, second_text, left_top_right_bottom)
-            #h = (len(new_lines)) * line_height
-            h_top = message_top - option.rect.top()
-            h = message_height + h_top + 20
-            return h
+        #left_top_right_bottom = message_left, message_top, right, 99999
+        if type(item.message) != LoadMessagesButton:
+
+            second_text = self.getItemSecondText(item)
+            if second_text:
+                right = option.rect.right()
+
+                m_rect, max_bottom = self.delegate._PARTS.message_part.calc_rect(item, right)
+
+                message_height, new_lines = self.delegate.prepareMessageText(item, second_text, m_rect)
+                #h = (len(new_lines)) * line_height
+                # h_top = message_top - option.rect.top()
+                # h = message_height + h_top + 20
+                h = message_height + max_bottom
+                return h
 
         return 70
 

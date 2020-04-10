@@ -1,7 +1,7 @@
 from PyQt5.QtGui import QPainter, QPixmap, QColor, QFontMetrics, QFont, QPen
 from PyQt5.QtCore import QPointF, Qt, QRectF
 
-from bp_chat.gui.core.draw import color_from_hex, pixmap_from_file, IconDrawer
+from bp_chat.gui.core.draw import color_from_hex, pixmap_from_file, IconDrawer, draw_badges
 
 
 class PBase:
@@ -289,6 +289,7 @@ class PChatImage(PBase):
         self.drawRound(painter, delegate, item, rect_tuple[0], rect_tuple[1], w, h)
         self.drawImage(painter, delegate, item, rect_tuple[0], rect_tuple[1], w, h)
         self.drawStatus(painter, delegate, item, rect_tuple[0], rect_tuple[1], w, h)
+        self.drawBadges(painter, delegate, item, rect_tuple[0], rect_tuple[1])
 
     def drawRound(self, painter, delegate, item, left, top, w, h):
         round_color = self.color_from_item(item)
@@ -336,6 +337,11 @@ class PChatImage(PBase):
             painter.setBrush(status_color)
             painter.drawEllipse(QPointF(left + 45, top + 40), 6, 6)
 
+    def drawBadges(self, painter, delegate, item, left, top):
+        badges_count = delegate.list_model.getItemBadgesCount(item)
+        if badges_count > 0:
+            draw_badges(painter, badges_count, left + 39 + 8-8, top + 20 + 8-8 - 6, muted=delegate.list_model.getMuted(item))
+
     def color_from_item(self, item):
         item_color = item.getColor()
         if item_color:
@@ -351,6 +357,9 @@ class PMessageImage(PChatImage):
     def _draw(self, painter: QPainter, delegate, item, rect_tuple: tuple):
         if delegate.need_draw_image_and_title(item):
             super()._draw(painter, delegate, item, rect_tuple)
+
+    def drawBadges(self, painter, delegate, item, left, top):
+        pass
 
     def get_size(self, item, delegate):
         return 38, 38

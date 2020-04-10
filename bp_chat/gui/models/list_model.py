@@ -922,7 +922,8 @@ class ListDelegate(QItemDelegate):
 
     def calc_and_change_is_on_pos(self, name, pos, item, check_rect):
         new_value = None
-        if check_rect.top() <= pos[1] <= check_rect.bottom() and check_rect.left() <= pos[0] <= check_rect.right():
+        if (check_rect.top() <= pos[1] <= check_rect.bottom() and check_rect.left() <= pos[0] <= check_rect.right()
+                and (self.need_draw_image_and_title(item) or name == '_mouse_on_item')):
             new_value = item
         return self.change_value(name, new_value)
 
@@ -1233,6 +1234,7 @@ class MessagesListDelegate(ListDelegate):
         message_height = 0
 
         quote = item.message.quote
+        _add = 0
         if quote:
 
             _quote_lines = []
@@ -1252,13 +1254,15 @@ class MessagesListDelegate(ListDelegate):
 
             new_lines = _quote_author + _quote_file + _quote_lines + new_lines
 
+            _add += 0.8 * line_height
+
         for line in lines:
             # top_now += line_height
             to_new_lines, top_now = drawer.prepare_line(line, (left, top_now, right), space_width, line_height)
 
             new_lines += to_new_lines
 
-        message_height = (len(new_lines)) * line_height
+        message_height = (len(new_lines)) * line_height + 0.5*line_height + _add
 
         if drawer.file_line:
             file_line = drawer.file_line

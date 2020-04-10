@@ -35,7 +35,7 @@ class MessageDrawer:
 
         self.metrics = QFontMetrics(font)
         w_rect = self.metrics.boundingRect(0, 0, 9999, 9999, Qt.Horizontal, 'w')
-        self.line_height = w_rect.height()
+        self.line_height = w_rect.height() * 0.88
         self.w_width = w_rect.width()
         if self.w_width > 5:
             self.w_width = 5

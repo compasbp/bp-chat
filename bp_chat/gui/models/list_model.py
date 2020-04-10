@@ -528,6 +528,7 @@ class ListDelegate(QItemDelegate):
         #print(":::", id(item))
 
         if type(item.item) == LoadMessagesButton:
+            item.item.draw(painter, (left+50, top+20, right, bottom))
             return
 
         if NEED_DRAW_PPARTS and self._PARTS is not None:

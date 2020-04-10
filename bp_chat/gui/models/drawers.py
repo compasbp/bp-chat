@@ -203,12 +203,13 @@ class WordsLine(LineBase, list):
             a_right = a_left
 
             pen_changed = False
+            need_draw_line_under = False
             if w.word_type == WORD_TYPE_LINK:
                 pen_changed = True
                 x, y_start, x_end, y = w.rect
                 if mes_drawer.delegate._mouse_on_link == w:
+                    need_draw_line_under = True
                     painter.setPen(QPen(QColor(mes_drawer.LINK_COLOR_HOVER)))
-                    painter.drawLine(x, y + 3, x_end, y + 3)
                 else:
                     painter.setPen(QPen(QColor(mes_drawer.LINK_COLOR)))
 
@@ -235,6 +236,10 @@ class WordsLine(LineBase, list):
                 selected_words.append(''.join(selected_aa))
 
             painter.drawText(w_left, top_now, w)
+            if need_draw_line_under:
+                #painter.drawLine(x, y + 3, x_end, y + 3)
+                painter.drawLine(w_left, top_now+2, a_right, top_now+2)
+
             w_left = a_right + space_width
 
             if pen_changed:

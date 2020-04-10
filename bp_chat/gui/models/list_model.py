@@ -1537,7 +1537,7 @@ class MessagesListModel(ListModel):
             if second_text:
                 right = option.rect.right()
 
-                m_rect, max_bottom = self.delegate._PARTS.message_part.calc_rect(item, right)
+                m_rect, max_bottom = self.delegate._PARTS.message_part.calc_rect(item, self.delegate, right)
 
                 message_height, new_lines = self.delegate.prepareMessageText(item, second_text, m_rect)
                 #h = (len(new_lines)) * line_height

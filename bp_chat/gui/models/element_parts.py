@@ -53,14 +53,14 @@ class PBase:
     def _draw(self, painter: QPainter, delegate, item, rect_tuple: tuple):
         pass
 
-    def gen_calced_childs(self, item, rect_tuple: tuple, only_childs=False):
+    def gen_calced_childs(self, item, delegate, rect_tuple: tuple, only_childs=False):
         return tuple()
 
-    def calc_rect(self, item, root_width):
+    def calc_rect(self, item, delegate, root_width):
         root = self.root
         my_rect = None
         max_bottom = 0
-        for ch, r, margins in root.gen_calced_childs(item, (0, 0, root_width, 0)):
+        for ch, r, margins in root.gen_calced_childs(item, delegate, (0, 0, root_width, 0)):
             if ch == self:
                 my_rect = r
             b = r[3] - margins[1]
@@ -86,7 +86,7 @@ class PBase:
     def make_pen(self):
         pass
 
-    def get_size(self, item):
+    def get_size(self, item, delegate):
         return None, None
 
     def draw_line(self, painter, line, left, top, right, bottom, flags=Qt.AlignLeft | Qt.AlignTop):
@@ -124,10 +124,10 @@ class PLayout(PBase):
             yield from ch.gen_all()
 
     def _draw(self, painter: QPainter, delegate, item, rect_tuple: tuple):
-        for ch, r, _ in self.gen_calced_childs(item, rect_tuple, only_childs=True):
+        for ch, r, _ in self.gen_calced_childs(item, delegate, rect_tuple, only_childs=True):
             ch.draw(painter, delegate, item, r)
 
-    def get_calced_sizes(self, item, size_tuple):
+    def get_calced_sizes(self, item, delegate, size_tuple):
         # if getattr(item, 'calced_size_situation', None) != size_tuple:
 
         calced_sizes = [None for _ in self.childs]
@@ -137,7 +137,7 @@ class PLayout(PBase):
         lays = []
         len_i = self.get_length_i_for_calc()
         for i, child in enumerate(self.childs):
-            w, h = child.get_size(item)
+            w, h = child.get_size(item, delegate)
             if len_i > 0:
                 w, h = h, w
             if len_i == 0:
@@ -177,10 +177,10 @@ class PHLayout(PLayout):
     def get_length_i_for_calc(self):
         return 0
 
-    def gen_calced_childs(self, item, rect_tuple: tuple, only_childs=False):
+    def gen_calced_childs(self, item, delegate, rect_tuple: tuple, only_childs=False):
         left, top, right, bottom = rect_tuple
 
-        calced_sizes, calced_sizes_2 = self.get_calced_sizes(item, (right - left, bottom - top))
+        calced_sizes, calced_sizes_2 = self.get_calced_sizes(item, delegate, (right - left, bottom - top))
 
         l = left
         for i, child in enumerate(self.childs):
@@ -203,7 +203,7 @@ class PHLayout(PLayout):
             child_rect = (l, top + mt, r, b)
             yield child, child_rect, (ml, mt, mr, mb)
             if not only_childs:
-                yield from child.gen_calced_childs(item, child_rect, only_childs=only_childs)
+                yield from child.gen_calced_childs(item, delegate, child_rect, only_childs=only_childs)
 
             r += mr
             if r > l:
@@ -211,10 +211,10 @@ class PHLayout(PLayout):
             # if l >= right:
             #     break
 
-    def get_size(self, item):
+    def get_size(self, item, delegate):
         max_h = None
         for child in self.childs:
-            _, h = child.get_size(item)
+            _, h = child.get_size(item, delegate)
             if h is None:
                 max_h = None
                 break
@@ -231,10 +231,10 @@ class PVLayout(PLayout):
         return 1
 
     #def _draw(self, painter: QPainter, delegate, item, rect_tuple: tuple):
-    def gen_calced_childs(self, item, rect_tuple: tuple, only_childs=False):
+    def gen_calced_childs(self, item, delegate, rect_tuple: tuple, only_childs=False):
         left, top, right, bottom = rect_tuple
 
-        calced_sizes, calced_sizes_2 = self.get_calced_sizes(item, (right - left, bottom - top))
+        calced_sizes, calced_sizes_2 = self.get_calced_sizes(item, delegate, (right - left, bottom - top))
 
         t = top
         for i, child in enumerate(self.childs):
@@ -258,7 +258,7 @@ class PVLayout(PLayout):
             child_rect = (left + ml, t, r, b)
             yield child, child_rect, (ml, mt, mr, mb)
             if not only_childs:
-                yield from child.gen_calced_childs(item, child_rect, only_childs=only_childs)
+                yield from child.gen_calced_childs(item, delegate, child_rect, only_childs=only_childs)
 
             b += mb
             if b > t:
@@ -266,10 +266,10 @@ class PVLayout(PLayout):
             # if t >= bottom:
             #     break
 
-    def get_size(self, item):
+    def get_size(self, item, delegate):
         max_w = None
         for child in self.childs:
-            w, _ = child.get_size(item)
+            w, _ = child.get_size(item, delegate)
             if w is None:
                 max_w = None
                 break
@@ -281,11 +281,11 @@ class PVLayout(PLayout):
 
 class PChatImage(PBase):
 
-    def get_size(self, item):
+    def get_size(self, item, delegate):
         return 50, 50
 
     def _draw(self, painter: QPainter, delegate, item, rect_tuple: tuple):
-        w, h = self.get_size(item)
+        w, h = self.get_size(item, delegate)
         self.drawRound(painter, delegate, item, rect_tuple[0], rect_tuple[1], w, h)
         self.drawImage(painter, delegate, item, rect_tuple[0], rect_tuple[1], w, h)
         self.drawStatus(painter, delegate, item, rect_tuple[0], rect_tuple[1], w, h)
@@ -352,14 +352,14 @@ class PMessageImage(PChatImage):
         if delegate.need_draw_image_and_title(item):
             super()._draw(painter, delegate, item, rect_tuple)
 
-    def get_size(self, item):
+    def get_size(self, item, delegate):
         return 38, 38
 
 
 
 class PChatDownLine(PBase):
 
-    def get_size(self, item):
+    def get_size(self, item, delegate):
         return None, 1
 
     def _draw(self, painter: QPainter, delegate, item, rect_tuple: tuple):
@@ -370,13 +370,13 @@ class PChatDownLine(PBase):
 
 class PStretch(PBase):
 
-    def get_size(self, item):
+    def get_size(self, item, delegate):
         return self.kwargs.get('width', None), self.kwargs.get('height', None)
 
 
 class PLogin(PBase):
 
-    def get_size(self, item):
+    def get_size(self, item, delegate):
         r = self.fm.boundingRect("W")
         return None, r.height()
 
@@ -426,7 +426,7 @@ class PMessageLogin(PLogin):
 
 class PLastMessage(PBase):
 
-    def get_size(self, item):
+    def get_size(self, item, delegate):
         r = self.fm.boundingRect("W")
         return None, r.height()
 
@@ -467,7 +467,7 @@ class PLastMessage(PBase):
 
 class PMessage(PBase):
 
-    def get_size(self, item):
+    def get_size(self, item, delegate):
         return None, None
 
     def _draw(self, painter: QPainter, delegate, item, rect_tuple: tuple):
@@ -500,7 +500,7 @@ class PMessage(PBase):
 
 class PLastTime(PBase):
 
-    def get_size(self, item):
+    def get_size(self, item, delegate):
         time_string = item.getTimeString()
         if time_string:
             r = self.fm.boundingRect(time_string)

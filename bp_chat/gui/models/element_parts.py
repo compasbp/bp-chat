@@ -348,6 +348,10 @@ class PChatImage(PBase):
 
 class PMessageImage(PChatImage):
 
+    def _draw(self, painter: QPainter, delegate, item, rect_tuple: tuple):
+        if delegate.need_draw_image_and_title(item):
+            super()._draw(painter, delegate, item, rect_tuple)
+
     def get_size(self, item):
         return 38, 38
 
@@ -411,6 +415,13 @@ class PLogin(PBase):
     @property
     def font_size(self):
         return 14
+
+
+class PMessageLogin(PLogin):
+
+    def _draw(self, painter: QPainter, delegate, item, rect_tuple: tuple):
+        if delegate.need_draw_image_and_title(item):
+            super()._draw(painter, delegate, item, rect_tuple)
 
 
 class PLastMessage(PBase):

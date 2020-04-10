@@ -18,7 +18,7 @@ from .drawers import (MessageDrawer, WordsLine, FileLine, QuoteAuthor, QuoteLine
 from ..core.draw import pixmap_from_file, icon_from_file, IconDrawer, draw_icon_from_file
 from bp_chat.core.files_map import getDownloadsFilePath, FilesMap
 from .element_parts import (PHLayout, PChatImage, PVLayout, PLogin, PLastMessage, PLastTime, PChatDownLine, PStretch,
-                            PChatLayout, PMessageImage, PMessage, PMessageLayout)
+                            PChatLayout, PMessageImage, PMessage, PMessageLayout, PMessageLogin)
 
 
 NEED_DRAW_PPARTS = False
@@ -1182,7 +1182,7 @@ class MessagesListDelegate(ListDelegate):
     _PARTS = PMessageLayout(
         PMessageImage(margin_left=8, margin_top=8, margin_right=8, margin_bottom=8, debug=P_DEBUG),
         PVLayout(
-            PLogin(),
+            PMessageLogin(),
             PMessage(margin_top=5, debug=P_DEBUG),
             #PStretch(debug=DEBUG),
             #PChatDownLine(),

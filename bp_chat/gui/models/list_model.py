@@ -200,9 +200,13 @@ class ListView(QListView):
         return super().mouseMoveEvent(e)
 
     def update_items_indexes(self, *lst):
-        lst = [QPersistentModelIndex(ind) for ind in lst]
-        self.model().layoutAboutToBeChanged.emit(lst)
-        self.model().layoutChanged.emit(lst)
+        lst = [QPersistentModelIndex(ind) for ind in lst if ind]
+        if len(lst) == 0:
+            self.model().layoutAboutToBeChanged.emit()
+            self.model().layoutChanged.emit()
+        else:
+            self.model().layoutAboutToBeChanged.emit(lst)
+            self.model().layoutChanged.emit(lst)
 
 
 class ChatsListView(ListView):

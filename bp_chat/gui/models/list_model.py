@@ -1228,14 +1228,17 @@ class MessagesListDelegate(ListDelegate):
         quote = item.message.quote
         _add = 0
         if quote:
+            _quote_author = QuoteAuthor(quote, drawer)
+            if _quote_author.line_height > 0:
+                top_now += 0.8 * line_height
+
+            _quote_author = [_quote_author]
 
             _quote_lines = []
             for i, line in enumerate(drawer.quote_lines):
                 to_new_qoute_lines, top_now = drawer.prepare_line(line, (left, top_now, right), space_width, line_height,
                                                                 lambda a: QuoteLine(a, quote, drawer))
                 _quote_lines += to_new_qoute_lines
-
-            _quote_author = [QuoteAuthor(quote, drawer)]
 
             _quote_file = []
             if drawer.quote_file:
@@ -1247,6 +1250,7 @@ class MessagesListDelegate(ListDelegate):
             new_lines = _quote_author + _quote_file + _quote_lines + new_lines
 
             _add += 0.8 * line_height
+            top_now += 0.8 * line_height
 
         for line in lines:
             # top_now += line_height

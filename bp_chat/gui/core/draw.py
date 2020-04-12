@@ -259,6 +259,8 @@ class IconDrawer:
         dx, dy = size[0] - icon_size[0], size[1] - icon_size[1]
         dw, dh = icon_size[0] - actual_size[0], icon_size[1] - actual_size[1]
 
+        painter.drawPixmap(pos[0] + dx / 2 + dw / 2, pos[1] + dy / 2 + dh / 2, pixmap)
+
         if under_mouse:
             c = QColor('#ffffff00')
             c.setAlpha(0)
@@ -267,8 +269,6 @@ class IconDrawer:
             c2.setAlphaF(alpha*0.3)
             painter.setBrush(c2)
             painter.drawEllipse(QRectF(pos[0], pos[1], size[0], size[1]))
-
-        painter.drawPixmap(pos[0] + dx / 2 + dw / 2, pos[1] + dy / 2 + dh / 2, pixmap)
 
         # painter.setBrush(c)
         # painter.setPen(QColor('#000000'))

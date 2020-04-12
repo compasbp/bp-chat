@@ -314,6 +314,8 @@ class FileLine(LineBase):
     def draw_line(self, mes_drawer, painter, left_top_right_bottom, sel_start, sel_end):
 
         left, top_now, right, bottom_now = left_top_right_bottom
+        # top_now -= 10
+        # bottom_now -= 10
 
         _fullpath = getDownloadsFilePath(self.filename, self.file_uuid)
         file_exists = exists(_fullpath)
@@ -349,6 +351,9 @@ class FileLine(LineBase):
         #infoRect = QRect(0, 0, 200, 100)
 
         painter.drawImage(QPointF(left, text_rect.top()), file_pixmap.toImage())
+
+        temp_pen = painter.pen()
+        temp_font = painter.font()
 
         font = QFont()
         font.setBold(True)
@@ -389,6 +394,9 @@ class FileLine(LineBase):
             QRect(QPoint(fileNameRect.left(), fileNameRect.bottom()), QPoint(fileNameRect.right(), text_rect.bottom())),
             Qt.TextWordWrap, file_size)
         painter.drawText(fileSizeRect, Qt.TextWordWrap, file_size)
+
+        painter.setFont(temp_font)
+        painter.setPen(temp_pen)
 
 
 class QuoteDrawAdd:

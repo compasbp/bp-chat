@@ -567,7 +567,7 @@ class PMessageLayout(PHLayout):
         left, top, right, bottom = rect_tuple
 
         class option:
-            rect = QRectF(QPointF(left, top), QPointF(right, bottom))
+            rect = QRectF(QPointF(left, top), QPointF(right+10, bottom))
 
         delegate.fillRect(painter, item, None, option)
 

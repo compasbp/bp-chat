@@ -19,6 +19,7 @@ from ..core.draw import pixmap_from_file, icon_from_file, IconDrawer, draw_icon_
 from bp_chat.core.files_map import getDownloadsFilePath, FilesMap
 from .element_parts import (PHLayout, PChatImage, PVLayout, PLogin, PLastMessage, PLastTime, PChatDownLine, PStretch,
                             PChatLayout, PMessageImage, PMessage, PMessageLayout, PMessageLogin)
+from .funcs import V_SCROLL_SHOW
 
 
 NEED_DRAW_PPARTS = False
@@ -60,10 +61,11 @@ class ListView(QListView):
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
+        self.setStyleSheet(V_SCROLL_SHOW)
 
         scroll: QScrollBar = self.verticalScrollBar()
-        scroll.setPageStep(10)
-        scroll.setSingleStep(10)
+        #scroll.setPageStep(10)
+        #scroll.setSingleStep(10)
 
         self.scroll = QScrollBar(self)
         # self.scroll.setWindowOpacity(0)
@@ -144,6 +146,9 @@ class ListView(QListView):
     def on_scroll_range_changed(self, _min, _max):
         print('!!! on_scroll_range_changed', self.scroll.value(), self.scroll.maximum(), '->', _max)
         self.scroll.setRange(_min, _max)
+        self.scroll.setPageStep(self.verticalScrollBar().pageStep())
+        self.scroll.setSingleStep(self.verticalScrollBar().singleStep())
+        self.scroll.setSizeIncrement(self.verticalScrollBar().sizeIncrement())
 
     def showEvent(self, *args, **kwargs):
         ret = super().showEvent(*args, **kwargs)
@@ -152,39 +157,25 @@ class ListView(QListView):
 
     def resizeEvent(self, e):
         ret = super().resizeEvent(e)
-        self.scroll.move(self.width() - 10, 0)
-        self.scroll.resize(10, self.height())
+        self.scroll.move(self.width() - 11, 0)
+        self.scroll.resize(11, self.height())
         model = self.model()
         if model:
             model.update_items()
         return ret
 
     def enterEvent(self, e):
-        print('enterEvent')
+        #print('enterEvent')
         self._entered = True
         self.animate_scroll_show(show=True)
         return super().enterEvent(e)
 
     def leaveEvent(self, e):
-        print('leaveEvent')
+        #print('leaveEvent')
         self._entered = False
         self.animate_scroll_show(show=False)
         self.update_items_indexes(self.last_index_at)
-        # # self.model().layoutAboutToBeChanged.emit()
-        # # self.model().layoutChanged.emit()
-        # from threading import Timer
-        # t = getattr(self, '_t', None)
-        # if t:
-        #     t.cancel()
-        # self._t = Timer(3, self.reset_all)
-        # self._t.start()
-
         return super().leaveEvent(e)
-
-    # def reset_all(self):
-    #     # self.model().layoutAboutToBeChanged.emit()
-    #     # self.model().layoutChanged.emit()
-    #     self.model().reset_model()
 
     def mouseMoveEvent(self, e):
 
@@ -488,8 +479,8 @@ class ListDelegate(QItemDelegate):
             PLastMessage(margin_top=5, debug=P_DEBUG),
             PStretch(),
             PChatDownLine(debug=P_DEBUG),
-            margin_right=18
-        ), #debug=True
+            margin_right=10
+        ), debug=P_DEBUG
     )
 
     def __init__(self, listView, list_model):
@@ -1189,7 +1180,7 @@ class MessagesListDelegate(ListDelegate):
             #PStretch(debug=DEBUG),
             #PChatDownLine(),
             PHLayout(PStretch(height=2), PLastTime()),
-            margin_right=18, margin_top=5
+            margin_right=0, margin_top=5
         ), debug=P_DEBUG
     )
 

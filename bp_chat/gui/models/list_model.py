@@ -18,11 +18,14 @@ from .drawers import (MessageDrawer, WordsLine, FileLine, QuoteAuthor, QuoteLine
 from ..core.draw import pixmap_from_file, icon_from_file, IconDrawer, draw_icon_from_file
 from bp_chat.core.files_map import getDownloadsFilePath, FilesMap
 from .element_parts import (PHLayout, PChatImage, PVLayout, PLogin, PLastMessage, PLastTime, PChatDownLine, PStretch,
-                            PChatLayout, PMessageImage, PMessage, PMessageLayout, PMessageLogin)
+                            PChatLayout, PMessageImage, PMessage, PMessageLayout, PMessageLogin, PChatPinned,
+                            PChatMuted, PMessageDelivered)
 from .funcs import V_SCROLL_SHOW
+from ..core.widgets import InfoLabel
 
 
-NEED_DRAW_PPARTS = False
+NEED_DRAW_PPARTS = True
+P_DEBUG = 'P_DEBUG' in argv
 
 def set_NEED_DRAW_PPARTS(val):
     global NEED_DRAW_PPARTS
@@ -144,7 +147,6 @@ class ListView(QListView):
         animation.start()
 
     def on_scroll_range_changed(self, _min, _max):
-        print('!!! on_scroll_range_changed', self.scroll.value(), self.scroll.maximum(), '->', _max)
         self.scroll.setRange(_min, _max)
         self.scroll.setPageStep(self.verticalScrollBar().pageStep())
         self.scroll.setSingleStep(self.verticalScrollBar().singleStep())
@@ -241,6 +243,7 @@ class MessagesListView(ListView):
 
     _scroll_before_load_state = None
     _need_scroll_to_bottom_on_messages = False
+    _opened = 2
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -253,6 +256,50 @@ class MessagesListView(ListView):
         self._custom_selection = CustomSelection()
         self._scroll_last_value = 0
 
+        self.info_label_bottom = InfoLabel(self, auto_pos=InfoLabel.BOTTOM)
+        self.info_label_bottom.set_on_mouse_click_callback(self.on_info_label_click)
+        self.info_label_bottom.hide()
+
+    def set_opened(self, val):
+        self._opened = val
+
+    def on_scroll_range_changed(self, _min, _max):
+        need_scroll = self.need_scroll_to_bottom_on_messages
+        last_max = self.scroll.maximum()
+        if self.model()._need_print_reset():
+            print('!!! on_scroll_range_changed', self.scroll.value(), last_max, '->', _max,
+                  "openChat:", self.is_chat_opening())
+        super().on_scroll_range_changed(_min, _max)
+
+        if need_scroll:
+            self.scroll_to_bottom()
+        elif self.is_loading_20():
+            # self._after_scroll_range_change_actions, actions = [], self._after_scroll_range_change_actions
+            # for action in actions:
+            #     func = getattr(self, action) if type(action) == str else action
+            #     func()
+            self._scroll_to_state()
+        else:
+            if _max > last_max:
+                self.show_info("New message", self.delegate.COLOR_MESSAGE_NOT_READED)
+
+        self.set_opened(0)
+
+    def on_info_label_click(self):
+        self.scroll_to_bottom()
+
+    def is_chat_opening(self):
+        return self.model().isOpeningChat() or self._opened == 1
+
+    def is_loading_20(self):
+        return self._opened == 2
+
+    def show_info(self, text, color=None):
+        self.info_label_bottom.setText(text)
+        self.info_label_bottom.set_background(color)
+        self.info_label_bottom.set_color("#000000")
+        self.info_label_bottom.show()
+
     def scroll_to_bottom(self):
         print('[ scroll_to_bottom ]')  # FIXME
         # if self._scroll_to_bottom not in self._after_scroll_range_change_actions:
@@ -261,8 +308,8 @@ class MessagesListView(ListView):
         # self.model().reset_model(action=self._scroll_to_bottom)
         self._scroll_to_bottom()
 
-        if self._scroll_to_bottom not in self._after_scroll_range_change_actions:
-            self._after_scroll_range_change_actions.append(self._scroll_to_bottom)
+        # if self._scroll_to_bottom not in self._after_scroll_range_change_actions:
+        #     self._after_scroll_range_change_actions.append(self._scroll_to_bottom)
 
     def _scroll_to_bottom(self):
         maximum = self.verticalScrollBar().maximum()
@@ -272,8 +319,8 @@ class MessagesListView(ListView):
     def scroll_to_state(self, maximum):
         print('[ scroll_to_state ]')
         self._scroll_before_load_state = maximum
-        if self._scroll_to_state not in self._after_scroll_range_change_actions:
-            self._after_scroll_range_change_actions.append(self._scroll_to_state)
+        # if self._scroll_to_state not in self._after_scroll_range_change_actions:
+        #     self._after_scroll_range_change_actions.append(self._scroll_to_state)
 
     def _scroll_to_state(self):
         maximum = self._scroll_before_load_state
@@ -317,22 +364,10 @@ class MessagesListView(ListView):
     def on_scroll_changed_real(self, value):
         self.move_custom_selection_for_scroll(value)
         scroll: QScrollBar = self.verticalScrollBar()
-        self.need_scroll_to_bottom_on_messages = scroll.maximum() == value
-
-    # def on_scroll_range_changed(self, _min, _max):
-    #     print('!!! on_scroll_range_changed', self.scroll.value(), self.scroll.maximum(), '->', _max)
-    #     # last_max = self.scroll.maximum()
-    #     # new_scroll_value = int(round(_max * self._scroll_last_value / self.scroll.maximum()))
-    #
-    #     self.scroll.setRange(_min, _max)
-    #
-    #     # if new_scroll_value != self._scroll_last_value:
-    #     #     self.move_custom_selection_for_scroll(new_scroll_value)
-    #
-    #     self._after_scroll_range_change_actions, actions = [], self._after_scroll_range_change_actions
-    #     for action in actions:
-    #         func = getattr(self, action) if type(action) == str else action
-    #         func()
+        on_end = scroll.maximum() == value
+        self.need_scroll_to_bottom_on_messages = on_end
+        if on_end:
+            self.info_label_bottom.hide()
 
     def mousePressEvent(self, e):
         delegate = self.itemDelegate()
@@ -451,6 +486,8 @@ class MessagesListView(ListView):
 
     @property
     def need_scroll_to_bottom_on_messages(self):
+        if self.is_chat_opening():
+            return True
         return self._need_scroll_to_bottom_on_messages
 
     @need_scroll_to_bottom_on_messages.setter
@@ -458,7 +495,6 @@ class MessagesListView(ListView):
         self._need_scroll_to_bottom_on_messages = val
         # print('!!! need_scroll_to_bottom_on_messages -> {}'.format(val))
 
-P_DEBUG = 'P_DEBUG' in argv
 
 class ListDelegate(QItemDelegate):
 
@@ -475,7 +511,7 @@ class ListDelegate(QItemDelegate):
         PChatImage(margin_left=8, margin_top=8, margin_right=8),
         PVLayout(
             PStretch(),
-            PHLayout(PLogin(debug=P_DEBUG), PLastTime(debug=P_DEBUG)),
+            PHLayout(PLogin(debug=P_DEBUG), PChatMuted(debug=P_DEBUG), PChatPinned(debug=P_DEBUG), PLastTime(debug=P_DEBUG)),
             PLastMessage(margin_top=5, debug=P_DEBUG),
             PStretch(),
             PChatDownLine(debug=P_DEBUG),
@@ -520,6 +556,8 @@ class ListDelegate(QItemDelegate):
 
         if type(item.item) == LoadMessagesButton:
             item.item.draw(painter, (left+50, top+20, right, bottom))
+            if not self.listView.is_chat_opening() and not self.listView.is_loading_20():
+                self.start_load_last_20()
             return
 
         if NEED_DRAW_PPARTS and self._PARTS is not None:
@@ -1062,7 +1100,8 @@ class ListModel(QAbstractListModel):
         pass # FIXME !!!
 
     def reset_model(self, action='_reset_model_do_action', change_need_to_bottom=True):
-        print('reset_model')
+        if self._need_print_reset():
+            print('reset_model')
         if change_need_to_bottom:
             self.listView.need_scroll_to_bottom_on_messages = True
 
@@ -1073,6 +1112,9 @@ class ListModel(QAbstractListModel):
             return
         self._need_reset_timer = Timer(0.1, self._reset_model)
         self._need_reset_timer.start()
+
+    def _need_print_reset(self):
+        return False
 
     def _reset_model(self):
         actions, self._reset_actions = self._reset_actions, []
@@ -1179,7 +1221,7 @@ class MessagesListDelegate(ListDelegate):
             PMessage(margin_top=5, debug=P_DEBUG),
             #PStretch(debug=DEBUG),
             #PChatDownLine(),
-            PHLayout(PStretch(height=2), PLastTime()),
+            PHLayout(PStretch(height=2), PLastTime(), PMessageDelivered(margin_left=2)),
             margin_right=0, margin_top=5
         ), debug=P_DEBUG
     )
@@ -1334,6 +1376,7 @@ class MessagesListDelegate(ListDelegate):
     def start_load_last_20(self):
         min_message_id = self.get_min_message_id()
         if self.last_load_min_message_id != min_message_id:
+            self.listView.set_opened(2)
             val, maximum = self.listView.verticalScrollBar().value(), self.listView.verticalScrollBar().maximum()
             # self.listView.scroll.setValue(50)
             self.listView.scroll_to_state(maximum)
@@ -1525,6 +1568,12 @@ class MessagesListModel(ListModel):
 
     def on_need_download_20(self, min_message_id):
         pass
+
+    def isOpeningChat(self):
+        return False
+
+    def _need_print_reset(self):
+        return True
 
     def getItemHeight(self, item, option):
 

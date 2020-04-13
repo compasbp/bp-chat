@@ -2,11 +2,12 @@ from os.path import basename
 
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QToolButton, QStackedLayout,
                              QLabel, QLineEdit, QStackedWidget, QSplitter, QTextEdit, QFrame)
-from PyQt5.QtGui import QPainter, QBrush, QColor, QIcon
-from PyQt5.QtCore import Qt, QRect, QRectF, QPoint, QEvent, QSize, QAbstractAnimation, pyqtSignal
+from PyQt5.QtGui import QPainter, QBrush, QColor, QIcon, QPen
+from PyQt5.QtCore import Qt, QRect, QRectF, QPoint, QEvent, QSize, QAbstractAnimation, pyqtSignal, QPointF
 
 from .draw import (set_widget_background, draw_shadow_round, draw_rounded_form,
                    draw_shadow, draw_shadow_down, SHADOW_DOWN, SHADOW_RIGHT, SHADOW_UP, IconDrawer)
+from ..models.element_parts import PHLayout, SimpleIcon, PBase
 
 
 class VLayoutWidget(QWidget):
@@ -314,37 +315,156 @@ class TopBottomSplitter(QSplitter):
         getattr(self, to + '_stack').addWidget(widget)
 
 
-class InfoLabel(QLabel):
 
-    def __init__(self, parent=None):
+class PLabelText(PBase):
+
+    def get_size(self, item, delegate):
+        r = self.fm.boundingRect("W")
+        return None, r.height()
+
+    def _draw(self, painter: QPainter, delegate, item, rect_tuple: tuple):
+        left, top, right, bottom = rect_tuple
+
+        pen = QPen()
+        pen.setWidth(1)
+        pen.setColor(QColor(30, 30, 30))
+        painter.setPen(pen)
+
+        font = self.font
+        painter.setFont(font)
+
+        second_text = item.text()
+
+        _text = second_text.replace("\n", " ").replace("\r", "").replace("\t", " ")
+        while "  " in _text:
+            _text = _text.replace("  ", " ")
+
+        brect = self.fm.boundingRect(left, 0, 9999, 50, Qt.Horizontal, _text)
+        if brect.right() > right - 10:  # FIXME
+            max_len = int((right - left) / 6)
+            _text = _text[:max_len] + "..."
+
+        self.draw_line(painter, _text, left, top, right, bottom)
+
+    @property
+    def font_size(self):
+        return 12
+
+
+class PLabelLayout(PHLayout):
+
+    def _draw(self, painter: QPainter, delegate, item, rect_tuple: tuple):
+        left, top, right, bottom = rect_tuple
+
+        rect = QRectF(QPointF(left, top), QPointF(right, bottom))
+
+        _background_color = "#cccccc"
+        if item._background_color:
+            _background_color = item._background_color
+
+        _color = "#555555"
+        if item._color:
+            _color = item._color
+
+        painter.setPen(QColor(_color))
+        painter.setBrush(QColor(_background_color))
+
+        painter.drawRect(rect)
+
+        super()._draw(painter, delegate, item, rect_tuple)
+
+
+class AutoPos:
+    NO = 0
+    TOP = 1
+    BOTTOM = 2
+
+    HEIGHT = None
+    WIDTH = None
+
+    def init_auto_pos(self, parent, auto_pos):
+        self.auto_pos = auto_pos
+        if auto_pos and parent:
+            parent.installEventFilter(self)
+
+    def eventFilter(self, obj, e):
+        if e.type() == QEvent.Resize:
+            h = obj.height() if self.HEIGHT == None else self.HEIGHT
+            w = obj.width() if self.WIDTH == None else self.WIDTH
+            self.resize(QSize(w, h))
+            if self.auto_pos == AutoPos.TOP:
+                self.move(0, 0)
+            elif self.auto_pos == AutoPos.BOTTOM:
+                self.move(0, obj.height()-h)
+        #return super().eventFilter(obj, e)
+        return False
+
+
+class InfoLabel(QLabel, AutoPos):
+
+    _PARTS = PLabelLayout(
+        PLabelText(margin_left=10, margin_right=10),
+        margin_left=20, margin_right=20, margin_bottom=10
+    )
+    _background_color = None
+    _color = None
+
+    def __init__(self, parent=None, auto_pos=AutoPos.NO):
         super().__init__(parent)
-        self.setMinimumHeight(50)
+        self.setMinimumHeight(30)
+        self.init_auto_pos(parent, auto_pos)
+        self.setCursor(Qt.PointingHandCursor)
+
+    @property
+    def HEIGHT(self):
+        return self.height()
+
+    def set_background(self, color):
+        self._background_color = color
+
+    def set_color(self, color):
+        self._color = color
 
     def paintEvent(self, event):
         #ret = super().paintEvent(event)
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
+
         sz = self.size()
-        padding = 5
-        width = sz.width() - padding*2
-        height = 30
-        r = height / 2
-        shadow_ln = 10
 
-        draw_shadow_round(painter, (r+padding-1, height), shadow_ln, part='left')
-        draw_shadow_round(painter, (padding+width-r+1, height), shadow_ln, part='right')
-        draw_rounded_form(painter, (padding, 0), (width, height))
-        draw_shadow_down(painter, (padding+r, height), (width-r*2, shadow_ln))
+        self._PARTS.draw(painter, self, self, (0, 0, sz.width(), sz.height()))
 
-        painter.setPen(QColor(255, 255, 255))
-        #font = painter.font()
-        # font = QFont("Arial")
-        # font.setPixelSize(font_pixel_size)
-        #font.setPointSize(6)
-        #font.setBold(True)
-        #painter.setFont(font)
-        painter.drawText(30, 18, self.text())
-        #return ret
+        # padding = 5
+        # width = sz.width() - padding*2
+        # height = 30
+        # r = height / 2
+        # shadow_ln = 10
+        #
+        # draw_shadow_round(painter, (r+padding-1, height), shadow_ln, part='left')
+        # draw_shadow_round(painter, (padding+width-r+1, height), shadow_ln, part='right')
+        # draw_rounded_form(painter, (padding, 0), (width, height))
+        # draw_shadow_down(painter, (padding+r, height), (width-r*2, shadow_ln))
+        #
+        # painter.setPen(QColor(255, 255, 255))
+        # #font = painter.font()
+        # # font = QFont("Arial")
+        # # font.setPixelSize(font_pixel_size)
+        # #font.setPointSize(6)
+        # #font.setBold(True)
+        # #painter.setFont(font)
+        # painter.drawText(30, 18, self.text())
+        # #return ret
+
+    def _on_mouse_click(self):
+        pass
+
+    def set_on_mouse_click_callback(self, callback):
+        self._on_mouse_click = callback
+
+    def event(self, e):
+        if e.type() == QEvent.MouseButtonPress:
+            self._on_mouse_click()
+        return super().event(e)
 
 
 class MessageInputWidget(QWidget):

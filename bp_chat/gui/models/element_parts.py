@@ -1,7 +1,7 @@
 from PyQt5.QtGui import QPainter, QPixmap, QColor, QFontMetrics, QFont, QPen
 from PyQt5.QtCore import QPointF, Qt, QRectF
 
-from bp_chat.gui.core.draw import color_from_hex, pixmap_from_file, IconDrawer, draw_badges
+from bp_chat.gui.core.draw import color_from_hex, pixmap_from_file, IconDrawer, draw_badges, draw_icon_from_file
 
 
 class PBase:
@@ -41,8 +41,14 @@ class PBase:
         return list(self.gen_to_root())[::-1]
 
     def draw(self, painter: QPainter, delegate, item, rect_tuple: tuple):
+        if self.root == self:
+            mt, mb = self.kwargs.get('margin_top', 0), self.kwargs.get('margin_bottom', 0)
+            ml, mr = self.kwargs.get('margin_left', 0), self.kwargs.get('margin_right', 0)
+            rect_tuple = (rect_tuple[0]+ml, rect_tuple[1]+mt, rect_tuple[2]-mr, rect_tuple[3]-mb)
+
         if self.debug:
-            print('{} - r:{} h:{} | id:{}'.format(self.__class__.__name__, rect_tuple, rect_tuple[3]-rect_tuple[1], id(item)))
+            print('{} - r:{} w:{} h:{} | id:{}'.format(self.__class__.__name__, rect_tuple,
+                rect_tuple[2] - rect_tuple[0], rect_tuple[3] - rect_tuple[1], id(item)))
             painter.setRenderHint(QPainter.NonCosmeticDefaultPen)
             painter.setPen(QColor(220, 20, 20))
             painter.setBrush(QColor(250, 250, 250))
@@ -188,7 +194,7 @@ class PHLayout(PLayout):
             ml, mr = child.kwargs.get('margin_left', 0), child.kwargs.get('margin_right', 0)
             mt, mb = child.kwargs.get('margin_top', 0), child.kwargs.get('margin_bottom', 0)
             l += ml
-            if w is not None and w > 0:
+            if w is not None: #and w > 0:
                 r = l + w
             else:
                 r = right
@@ -242,16 +248,16 @@ class PVLayout(PLayout):
             ml, mr = child.kwargs.get('margin_left', 0), child.kwargs.get('margin_right', 0)
             mt, mb = child.kwargs.get('margin_top', 0), child.kwargs.get('margin_bottom', 0)
             t += mt
-            if h is not None and h > 0:
+            if h is not None: #and h > 0:
                 b = t + h
             else:
                 b = bottom
 
             w = calced_sizes_2[i]
             r = right
-            if w and right == left:
-                _r = left + w - mr
-                if _r > r:
+            if w: #and right == left:
+                _r = left + ml + w #- mr
+                if _r > left:
                     r = _r
 
             #child.draw(painter, delegate, item, (left + ml, t, right, b))
@@ -277,6 +283,91 @@ class PVLayout(PLayout):
                 if not max_w or w > max_w:
                     max_w = w
         return max_w, None
+
+
+class PChatLayout(PHLayout):
+
+    def _draw(self, painter: QPainter, delegate, item, rect_tuple: tuple):
+        left, top, right, bottom = rect_tuple
+
+        background_color = None
+
+        if delegate.is_on_item(item):
+            background_color = QColor(245, 245, 245)
+
+        if item.isSelectedItem():
+            if background_color:
+                background_color = QColor(235, 235, 235)
+            else:
+                background_color = QColor(240, 240, 240)
+
+        if background_color:
+            painter.fillRect(QRectF(QPointF(left, top), QPointF(right, bottom)), background_color)
+
+        super()._draw(painter, delegate, item, rect_tuple)
+
+
+class PMessageLayout(PHLayout):
+
+    _message_part = None
+
+    def _draw(self, painter: QPainter, delegate, item, rect_tuple: tuple):
+        left, top, right, bottom = rect_tuple
+
+        class option:
+            rect = QRectF(QPointF(left, top), QPointF(right+10, bottom))
+
+        delegate.fillRect(painter, item, None, option)
+
+        super()._draw(painter, delegate, item, rect_tuple)
+
+    @property
+    def message_part(self):
+        if not self._message_part:
+            for ch in self.gen_all():
+                if type(ch) == PMessage:
+                    self._message_part = ch
+                    break
+        return self._message_part
+
+
+class SimpleIcon(PBase):
+
+    def get_size(self, item, delegate):
+        if self.need_show(item, delegate):
+            return 16, 16
+        else:
+            return 0, 0
+
+    def _draw(self, painter: QPainter, delegate, item, rect_tuple: tuple):
+        if self.need_show(item, delegate):
+            w, h = rect_tuple[2] - rect_tuple[0], rect_tuple[3] - rect_tuple[1]
+            draw_icon_from_file(painter, self.get_icon_name(item, delegate),
+                                rect_tuple[0], rect_tuple[1], w=w, h=h)
+
+    def need_show(self, item, delegate):
+        return True
+
+    def get_icon_name(self, item, delegate):
+        return None
+
+
+class PChatMuted(SimpleIcon):
+
+    def need_show(self, item, delegate):
+        return delegate.list_model.getMuted(item)
+
+    def get_icon_name(self, item, delegate):
+        return 'mute_grey'
+
+
+class PChatPinned(SimpleIcon):
+
+    def need_show(self, item, delegate):
+        return delegate.list_model.getPinned(item)
+
+    def get_icon_name(self, item, delegate):
+        return 'pin_grey'
 
 
 class PChatImage(PBase):
@@ -507,6 +598,28 @@ class PMessage(PBase):
         return QColor(150, 150, 150)
 
 
+class PMessageDelivered(SimpleIcon):
+    ICON_NAME = 'pin_grey'
+
+    def get_size(self, item, delegate):
+        return 16, 16
+
+    def need_show(self, item, delegate):
+        current_user_id = delegate.list_model.get_current_user_id()
+        return current_user_id == item.item.sender_id
+
+    def get_icon_name(self, item, delegate):
+        delivered_icon = None
+
+        if self.need_show(item, delegate):
+            delivered_icon = "check"
+
+            if item.item.getDelivered():
+                delivered_icon = "check_all"
+
+        return delivered_icon
+
+
 class PLastTime(PBase):
 
     def get_size(self, item, delegate):
@@ -525,7 +638,7 @@ class PLastTime(PBase):
         if time_string:
             pen = QPen()
             pen.setWidth(1)
-            pen.setColor(delegate.message_text_color())
+            pen.setColor(self.text_color)
             painter.setPen(pen)
 
             painter.setFont(self.font)
@@ -533,51 +646,9 @@ class PLastTime(PBase):
             self.draw_line(painter, time_string, left, top, right, bottom, Qt.AlignRight | Qt.AlignTop)
 
     @property
-    def font_size(self):
-        return 12
-
-
-class PChatLayout(PHLayout):
-
-    def _draw(self, painter: QPainter, delegate, item, rect_tuple: tuple):
-        left, top, right, bottom = rect_tuple
-
-        background_color = None
-
-        if delegate.is_on_item(item):
-            background_color = QColor(245, 245, 245)
-
-        if item.isSelectedItem():
-            if background_color:
-                background_color = QColor(235, 235, 235)
-            else:
-                background_color = QColor(240, 240, 240)
-
-        if background_color:
-            painter.fillRect(QRectF(QPointF(left, top), QPointF(right, bottom)), background_color)
-
-        super()._draw(painter, delegate, item, rect_tuple)
-
-
-class PMessageLayout(PHLayout):
-
-    _message_part = None
-
-    def _draw(self, painter: QPainter, delegate, item, rect_tuple: tuple):
-        left, top, right, bottom = rect_tuple
-
-        class option:
-            rect = QRectF(QPointF(left, top), QPointF(right+10, bottom))
-
-        delegate.fillRect(painter, item, None, option)
-
-        super()._draw(painter, delegate, item, rect_tuple)
+    def text_color(self):
+        return QColor(150, 150, 150)
 
     @property
-    def message_part(self):
-        if not self._message_part:
-            for ch in self.gen_all():
-                if type(ch) == PMessage:
-                    self._message_part = ch
-                    break
-        return self._message_part
+    def font_size(self):
+        return 12

@@ -256,7 +256,7 @@ class FileLine(LineBase):
     # first_word_left = 5
 
     line_type = LINE_TYPE_FILE
-    _line_height = None
+    _line_height_tuple = None
 
     def __init__(self, file_uuid, filename, filesize, message_drawer):
         self.file_uuid = file_uuid
@@ -272,17 +272,21 @@ class FileLine(LineBase):
 
     @property
     def line_height(self):
-        if self._line_height == None:
-            self._line_height = self.get_size()[1]
-        return self._line_height
+        if self._line_height_tuple == None or not self._line_height_tuple[2]:
+            self._line_height_tuple = self.get_size_base()
+        return self._line_height_tuple[1]
 
     def get_size(self, font_height=12):
+        return self.get_size_base()[:2]
+
+    def get_size_base(self):
         _fullpath = getDownloadsFilePath(self.filename, self.file_uuid)
         file_exists = exists(_fullpath)
 
-        pixmap_w, pixmap_h = 30, 30
+        pixmap_w, pixmap_h, calced = 30, 30, False
 
         if file_exists:
+            calced = True
             _lower_fullpath = _fullpath.lower()
             if _lower_fullpath.endswith('.jpg') or _lower_fullpath.endswith('.png'):
 
@@ -293,7 +297,6 @@ class FileLine(LineBase):
 
                 sizes = icon.availableSizes()
                 if sizes and len(sizes) > 0:
-                    # self.images[_file_uuid] = icon
                     sz = sizes[0]
                     _w, _h = sz.width(), sz.height()
                     if _h > 100:
@@ -310,7 +313,7 @@ class FileLine(LineBase):
                     if isz.width() > 0 and isz.height() > 0:
                         pixmap_w, pixmap_h = isz.width(), isz.height()
 
-        return pixmap_w, pixmap_h
+        return pixmap_w, pixmap_h, calced
 
     def draw_line(self, mes_drawer, painter, left_top_right_bottom, sel_start, sel_end):
 

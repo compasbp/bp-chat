@@ -284,7 +284,9 @@ class MessagesListView(ListView):
             self._scroll_to_state()
         else:
             if _max > last_max:
-                self.show_info("New message", self.delegate.COLOR_MESSAGE_NOT_READED)
+                last_message = self.model().last_message
+                if last_message and not last_message.getDelivered() and not self.delegate.is_message_from_current_user(last_message):
+                    self.show_info(self.model().new_message_text(), self.delegate.COLOR_MESSAGE_NOT_READED)
 
         self.set_opened(0)
 
@@ -300,7 +302,7 @@ class MessagesListView(ListView):
     def show_info(self, text, color=None):
         self.info_label_bottom.setText(text)
         self.info_label_bottom.set_background(color)
-        self.info_label_bottom.set_color("#000000")
+        self.info_label_bottom.set_color("#e7933e")
         self.info_label_bottom.show()
 
     def scroll_to_bottom(self):
@@ -1267,11 +1269,13 @@ class MessagesListDelegate(ListDelegate):
 
         lines = drawer.lines
 
+        new_lines_without_files = []
         new_lines = []
         message_height = 0
-
         quote = item.message.quote
         _add = 0
+        quote_lines = []
+
         if quote:
             _quote_author = QuoteAuthor(quote, drawer)
             if _quote_author.line_height > 0:
@@ -1290,12 +1294,14 @@ class MessagesListDelegate(ListDelegate):
 
             _quote_file = []
             if drawer.quote_file:
+                _add += drawer.quote_file.line_height
                 _quote_file.append(drawer.quote_file)
 
             if len(_quote_lines) > 0:
                 _quote_lines[-1].is_last_quote_line = True
 
-            new_lines = _quote_author + _quote_file + _quote_lines + new_lines
+            new_lines += _quote_author + _quote_file + _quote_lines
+            new_lines_without_files += _quote_author + _quote_lines
 
             _add += 0.8 * line_height
             top_now += 0.8 * line_height
@@ -1305,8 +1311,9 @@ class MessagesListDelegate(ListDelegate):
             to_new_lines, top_now = drawer.prepare_line(line, (left, top_now, right), space_width, line_height)
 
             new_lines += to_new_lines
+            new_lines_without_files += to_new_lines
 
-        message_height = (len(new_lines)) * line_height + 0.5*line_height + _add
+        message_height = (len(new_lines_without_files)) * line_height + 0.5*line_height + _add
 
         if drawer.file_line:
             file_line = drawer.file_line
@@ -1448,9 +1455,7 @@ class MessagesListDelegate(ListDelegate):
 
         if type(message) != LoadMessagesButton:
 
-            current_user_id = self.list_model.get_current_user_id()
-
-            if current_user_id == message.sender_id:
+            if self.is_message_from_current_user(message):
                 background_color = self.COLOR_MY_MESSAGE
 
             elif not message.getDelivered():
@@ -1458,6 +1463,10 @@ class MessagesListDelegate(ListDelegate):
                 self.list_model.add_to_delivered_by_gui(message.mes_id)
 
         return color_from_hex(background_color)
+
+    def is_message_from_current_user(self, message):
+        current_user_id = self.list_model.get_current_user_id()
+        return current_user_id == message.sender_id
 
     def get_delivered_icon(self, message):
         delivered_icon = None
@@ -1599,6 +1608,9 @@ class MessagesListModel(ListModel):
 
         return 70
 
+    def new_message_text(self):
+        return "New message"
+
     def set_items_dict(self, val):
         keys = list(val.keys())
         min_message_id = min(keys) if len(keys) > 0 else None
@@ -1616,6 +1628,13 @@ class MessagesListModel(ListModel):
             #     self.delegate.last_load_min_message_id = -1
 
         return messages_dict, keys_list
+
+    @property
+    def last_message(self):
+        if not self._keys_list:
+            return None
+        key = self._keys_list[-1]
+        return self._items_dict.get(key, None)
 
     def filt(self, k, m):
         if not self.is_only_files:

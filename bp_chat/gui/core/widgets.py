@@ -374,6 +374,15 @@ class PLabelLayout(PHLayout):
         super()._draw(painter, delegate, item, rect_tuple)
 
 
+class PLabelExpand(SimpleIcon):
+
+    def need_show(self, item, delegate):
+        return True
+
+    def get_icon_name(self, item, delegate):
+        return 'expand'
+
+
 class AutoPos:
     NO = 0
     TOP = 1
@@ -403,6 +412,7 @@ class AutoPos:
 class InfoLabel(QLabel, AutoPos):
 
     _PARTS = PLabelLayout(
+        PLabelExpand(),
         PLabelText(margin_left=10, margin_right=10),
         margin_left=20, margin_right=20, margin_bottom=10
     )

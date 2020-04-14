@@ -453,8 +453,11 @@ class PMessageImage(PChatImage):
         pass
 
     def get_size(self, item, delegate):
-        return 38, 38
-
+        if delegate.need_draw_image_and_title(item):
+            h = 38
+        else:
+            h = 0
+        return 38, h
 
 
 class PChatDownLine(PBase):
@@ -519,6 +522,14 @@ class PLogin(PBase):
 
 class PMessageLogin(PLogin):
 
+    def get_size(self, item, delegate):
+        if delegate.need_draw_image_and_title(item):
+            r = self.fm.boundingRect("W")
+            h = r.height()
+        else:
+            h = 0
+        return None, h
+
     def _draw(self, painter: QPainter, delegate, item, rect_tuple: tuple):
         if delegate.need_draw_image_and_title(item):
             super()._draw(painter, delegate, item, rect_tuple)
@@ -574,11 +585,8 @@ class PMessage(PBase):
         left, top, right, bottom = rect_tuple
 
         second_text = delegate.list_model.getItemSecondText(item)
-        if second_text:
-            #message_left, message_top = self.prepareMessageStartPosition(left, top)
+        if second_text != None:
 
-            # painter.setPen(self.text_color)
-            # painter.setFont(self.font)
             painter.setPen(delegate.message_text_color())
             font = delegate.prepareMessageFont()
             painter.setFont(font)

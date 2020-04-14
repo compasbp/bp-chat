@@ -1,5 +1,6 @@
 from os.path import exists, join, expanduser
 from copy import copy
+from sys import argv
 
 from PyQt5.QtGui import QFontMetrics, QPainter, QColor, QIcon, QFont, QPen
 from PyQt5.QtCore import Qt, QRectF, QPointF, QSize, QRect, QPoint
@@ -158,11 +159,11 @@ class MessageDrawer:
 
 class LineBase:
     line_type = LINE_TYPE_BASE
+    first_word_left = 0
 
 
 class WordsLine(LineBase, list):
 
-    first_word_left = 0
     _line_height = 14
     font_height = 14
 
@@ -314,8 +315,6 @@ class FileLine(LineBase):
     def draw_line(self, mes_drawer, painter, left_top_right_bottom, sel_start, sel_end):
 
         left, top_now, right, bottom_now = left_top_right_bottom
-        # top_now -= 10
-        # bottom_now -= 10
 
         _fullpath = getDownloadsFilePath(self.filename, self.file_uuid)
         file_exists = exists(_fullpath)
@@ -339,7 +338,7 @@ class FileLine(LineBase):
         else:
             icon = icon_from_file("download_file")
 
-        text_rect = QRect(QPoint(left, top_now), QPoint(right, bottom_now))
+        text_rect = QRect(QPoint(left+self.first_word_left, top_now-14), QPoint(right, bottom_now-14))
 
         file_pixmap = icon.pixmap(QSize(pixmap_w, pixmap_h))
         self._draw_file(mes_drawer, painter, file_pixmap, text_rect, pixmap_w, pixmap_h, mouse_pos=mes_drawer.delegate._mouse_pos)
@@ -350,10 +349,18 @@ class FileLine(LineBase):
         right = text_rect.right()
         #infoRect = QRect(0, 0, 200, 100)
 
-        painter.drawImage(QPointF(left, text_rect.top()), file_pixmap.toImage())
+        file_p = QPointF(left, text_rect.top())
+        image = file_pixmap.toImage()
 
         temp_pen = painter.pen()
         temp_font = painter.font()
+
+        if 'P_DEBUG' in argv:
+            painter.setPen(QColor(mes_drawer.RESEND_COLOR))
+            painter.drawRect(text_rect)
+            painter.drawRect(QRectF(file_p, QPointF(left+image.width(), text_rect.top()+image.height())))
+
+        painter.drawImage(file_p, image)
 
         font = QFont()
         font.setBold(True)
@@ -401,11 +408,18 @@ class FileLine(LineBase):
 
 class QuoteDrawAdd:
 
-    def draw_left_line(self, painter: QPainter, left, top, bottom):
+    def draw_left_line(self, painter: QPainter, left, top, bottom, minus_line_height=None):
+        temp_pen = painter.pen()
+
         painter.setPen(QPen(QColor(self.message_drawer.RESEND_COLOR), 3))
         #left = left - self.first_word_left
-        lh = self.line_height
+        if minus_line_height == None:
+            lh = self.line_height
+        else:
+            lh = minus_line_height
         painter.drawLine(left, top-lh+1, left, bottom-lh-1)
+
+        painter.setPen(temp_pen)
 
 
 class QuoteAuthor(LineBase, QuoteDrawAdd):
@@ -492,9 +506,16 @@ class QuoteLine(WordsLine, QuoteDrawAdd):
         return ret
 
 
-class QuoteFile(FileLine):
+class QuoteFile(FileLine, QuoteDrawAdd):
 
     first_word_left = 10
+
+    def draw_line(self, mes_drawer, painter, left_top_right_bottom, sel_start, sel_end):
+        left, top, right, bottom = left_top_right_bottom
+
+        self.draw_left_line(painter, left, top, bottom, minus_line_height=14)
+
+        super().draw_line(mes_drawer, painter, left_top_right_bottom, sel_start, sel_end)
 
 
 class WordDrawer(str):

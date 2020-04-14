@@ -207,12 +207,13 @@ class ChatsListView(ListView):
     def __init__(self, parent=None):
         super().__init__(parent)
 
-        self.setSelectionMode(QAbstractItemView.SingleSelection)
+        self.setSelectionMode(QAbstractItemView.NoSelection)
 
     def selectionChanged(self, selectedSelection, deselectedSelection):
-        last = self.selection_to_list(deselectedSelection)
-        lst = self.selection_to_list(selectedSelection)
-        self._selected_callback(lst)
+        # last = self.selection_to_list(deselectedSelection)
+        # lst = self.selection_to_list(selectedSelection)
+        # self._selected_callback(lst)
+        pass
 
     def selection_to_list(self, selectedSelection):
         return [ind.data() for ind in selectedSelection.indexes()]
@@ -228,6 +229,8 @@ class ChatsListView(ListView):
             e.ignore()
             self.open_menu_for_selected_item(e.globalPos())
         else:
+            if _cur_selected:
+                self._selected_callback([_cur_selected])
             return super().mousePressEvent(e)
 
     def open_menu_for_selected_item(self, global_pos):
@@ -1259,10 +1262,10 @@ class MessagesListDelegate(ListDelegate):
         line_height = drawer.line_height
         space_width = drawer.w_width
 
-        top_now = top #- line_height
+        top_now = top
         left_now = left - space_width
 
-        lines = drawer.lines #second_text.split('\n')
+        lines = drawer.lines
 
         new_lines = []
         message_height = 0
@@ -1281,6 +1284,9 @@ class MessagesListDelegate(ListDelegate):
                 to_new_qoute_lines, top_now = drawer.prepare_line(line, (left, top_now, right), space_width, line_height,
                                                                 lambda a: QuoteLine(a, quote, drawer))
                 _quote_lines += to_new_qoute_lines
+
+            if [['']] == _quote_lines:
+                _quote_lines.clear()
 
             _quote_file = []
             if drawer.quote_file:
@@ -1359,7 +1365,6 @@ class MessagesListDelegate(ListDelegate):
             _current_selection = self.listView._current_selection
             if len(selected_lines) > 0:
                 selected_text = '\n'.join(selected_lines)
-                #print('.... {}'.format(selected_text))
                 if drawer.message not in _current_selection:
                     _current_selection.append(drawer.message)
 
@@ -1369,9 +1374,6 @@ class MessagesListDelegate(ListDelegate):
                     _current_selection.remove(drawer.message)
 
             drawer.message.message.set_selected_text(selected_text)
-
-        # if top < mouse_pos[1] < bottom:
-        #     print('drawer DRAW: {} = {} = {}'.format(id(drawer), drawer.links, top))
 
     def start_load_last_20(self):
         min_message_id = self.get_min_message_id()

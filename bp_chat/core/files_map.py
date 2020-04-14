@@ -74,7 +74,7 @@ class FilesMap:
         row = cursor.fetchone()
         if row:
             filename = row[3]
-        else:
+        elif filename:
             ret = cursor.execute('SELECT count(id) FROM files WHERE name=?', (filename,))
             row = cursor.fetchone()
             num = row[0] + 1

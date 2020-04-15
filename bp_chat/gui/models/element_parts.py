@@ -552,7 +552,7 @@ class PLastMessage(PBase):
         font = self.font
         painter.setFont(font)
 
-        second_text = item.getSecondText()
+        second_text = delegate.list_model.getItemSecondText(item) #.getSecondText()
 
         _text = second_text.replace("\n", " ").replace("\r", "").replace("\t", " ")
         while "  " in _text:
@@ -563,13 +563,7 @@ class PLastMessage(PBase):
             max_len = int((right - left) / 6)
             _text = _text[:max_len] + "..."
 
-        #painter.drawText(left, top, _text)
         self.draw_line(painter, _text, left, top, right, bottom)
-
-    # def make_font(self):
-    #     font = super().make_font()
-    #     font.setBold(False)
-    #     return font
 
     @property
     def font_size(self):

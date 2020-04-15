@@ -237,7 +237,7 @@ class ChatsListView(ListView):
         ind = self.indexAt(self.mapFromGlobal(global_pos))
         item = ind.data()
         print('[ open_menu_for_selected_item ] {}'.format(item))
-        menu = self.model().make_menu(item) if item else None
+        menu = self.model().make_menu(item)
         if menu:
             menu.exec_(global_pos)
 
@@ -484,8 +484,8 @@ class MessagesListView(ListView):
         if not item:
             ind = self.indexAt(self.mapFromGlobal(global_pos))
             item = ind.data()
-            print('[ open_menu_for_selected_item ] {}'.format(item))
-        menu = self.model().make_menu(item) if item else None
+        print('[ open_menu_for_selected_item ] {}'.format(item))
+        menu = self.model().make_menu(item)
         if menu:
             menu.exec_(global_pos)
 

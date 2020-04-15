@@ -66,7 +66,8 @@ class ChatItem(ListModelItem, ColoredItem):
     def getSecondText(self):
         message = self.chat.get_last_message()
         if message:
-            return message.text
+            text = message.text
+            return text
         else:
             return ''
 

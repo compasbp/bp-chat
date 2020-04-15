@@ -430,7 +430,9 @@ class MessagesListView(ListView):
         _current_selection = self._current_selection
 
         if e.button() == Qt.RightButton:
-            if _cur_selected:
+
+            if _cur_selected and type(_cur_selected) != LoadMessagesButton:
+
                 if _cur_selected not in _current_selection and len(_current_selection) == 1:
                     _current_selection.clear()
                     _current_selection.append(_cur_selected)
@@ -1572,6 +1574,7 @@ class MessagesListDelegate(ListDelegate):
 class MessagesListModel(ListModel):
 
     is_only_files = False
+    is_only_favorites = False
     min_message_id = -1
 
     def __init__(self, listView):
@@ -1619,7 +1622,7 @@ class MessagesListModel(ListModel):
         messages_dict = { int(k):v for k, v in val.items() if self.filt(k, v) }
         keys_list = sorted(list(messages_dict.keys()), key=lambda key: (messages_dict[key].datetime, key))
 
-        if len(messages_dict) >= 20 or self.is_only_files or min_message_id == None: # FIXME
+        if len(messages_dict) >= 20 or (self.is_only_files or self.is_only_favorites) or min_message_id == None: # FIXME
             messages_dict.keys()
             messages_dict[-1] = LoadMessagesButton()
             keys_list.insert(0, -1)
@@ -1637,9 +1640,16 @@ class MessagesListModel(ListModel):
         return self._items_dict.get(key, None)
 
     def filt(self, k, m):
-        if not self.is_only_files:
-            return True
-        return True if m.has_file else False
+        ok = True
+
+        if self.is_only_files and not m.has_file:
+            ok = False
+
+        if self.is_only_favorites and not self.is_message_in_favorites(m):
+            ok = False
+
+        return ok
+
 
     def make_menu(self, message_item):
         pass
@@ -1658,6 +1668,9 @@ class MessagesListModel(ListModel):
 
     def getRightAdd(self):
         return 10
+
+    def is_message_in_favorites(self, mes):
+        return False
 
 
 class ListModelItem:
@@ -1700,6 +1713,8 @@ class CustomSelection:
 class LoadMessagesButton:
 
     text = "Load more messages"
+
+    NOT_MESSAGE = True
 
     def __init__(self, text=None):
         if text is not None:

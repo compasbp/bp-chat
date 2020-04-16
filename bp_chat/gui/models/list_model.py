@@ -1637,7 +1637,10 @@ class MessagesListModel(ListModel):
         if not self._keys_list:
             return None
         key = self._keys_list[-1]
-        return self._items_dict.get(key, None)
+        m = self._items_dict.get(key, None)
+        if hasattr(m, 'NOT_MESSAGE'):
+            m = None
+        return m
 
     def filt(self, k, m):
         ok = True

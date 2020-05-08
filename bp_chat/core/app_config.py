@@ -63,6 +63,8 @@ class SimpleConfig:
         #print('[ CONFIG ] {}'.format(self._data))
 
     def save(self):
+        print("SAVE {}".format(self._data))
+
         path = self.get_conf_path()
         dir_path = dirname(path)
         if not exists(dir_path):
@@ -73,7 +75,11 @@ class SimpleConfig:
                 c_d = self._config[title]
                 d_d = self._data[title]
                 for name, _ in d.items():
-                    c_d[name] = str(d_d[name])
+                    val = str(d_d[name])
+                    print(">>> {}".format(val))
+                    c_d[name] = val
+
+        print("SAVE {}".format(self._data))
 
         with open(path, 'w') as configfile:
             self._config.write(configfile)
@@ -127,7 +133,20 @@ class _AppConfig(SimpleConfig):
                         else:
                             it[b] = value
 
-class IntValue:
+
+class BaseValue:
+
+    def __str__(self):
+        return self.from_value()
+
+    def __repr__(self):
+        return self.__str__()
+
+    def from_value(self):
+        pass
+
+
+class IntValue(BaseValue):
 
     conf_type = str
 
@@ -146,7 +165,8 @@ class IntValue:
             value = self.default
         return str(value)
 
-class BoolValue:
+
+class BoolValue(BaseValue):
 
     conf_type = str
 

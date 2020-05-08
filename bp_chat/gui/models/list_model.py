@@ -1173,9 +1173,8 @@ class ChatsModel(ListModel):
         updateAction = menu.addAction(icon_from_file("refresh"), "Refresh chats")
         updateAction.triggered.connect(self.on_refresh_action)
 
-        #chat_api = ChatApi.instance()
-        chat_muted = False #chat_api.is_chat_muted(chat.chat_id)
-        chat_pinned = False #chat_api.is_chat_pinned(chat.chat_id)
+        chat_muted = False
+        chat_pinned = False
 
         mute_name = 'unmute' if chat_muted else 'mute'
         muteAction = menu.addAction(icon_from_file(mute_name), mute_name[:1].upper() + mute_name[1:])

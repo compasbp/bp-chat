@@ -85,7 +85,8 @@ class ChatItem(ListModelItem, ColoredItem):
         return 3
 
     def getColor(self):
-        return self.color
+        chat_color = getattr(self.chat, 'chat_color', None) if self.chat else None
+        return chat_color or self.color
 
     def getStatusColor(self):
         if self.chat.is_private():

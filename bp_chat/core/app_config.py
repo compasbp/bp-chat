@@ -147,7 +147,20 @@ class _AppConfig(SimpleConfig):
                         # else:
                         it[b] = value
 
-class IntValue:
+
+class BaseValue:
+
+    def __str__(self):
+        return self.from_value()
+
+    def __repr__(self):
+        return self.__str__()
+
+    def from_value(self):
+        pass
+
+
+class IntValue(BaseValue):
 
     conf_type = str
 
@@ -167,7 +180,7 @@ class IntValue:
         return str(value)
 
 
-class BoolValue:
+class BoolValue(BaseValue):
 
     conf_type = str
 

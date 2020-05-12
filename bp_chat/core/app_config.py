@@ -37,10 +37,11 @@ class SimpleConfig:
         return self._data[item]
 
     def load(self):
-        #print('[ LOAD ]')
+        print('[ LOAD ]')
         self._data = {}
         self._config = ConfigParser(allow_no_value=True)
         for title, d in self.structure.items():
+            d = self._fix_dict(d)
             self._config[title] = d
             self._data[title] = deepcopy(d)
 
@@ -54,32 +55,45 @@ class SimpleConfig:
                 c_d = self._config[title]
                 d_d = self._data[title]
                 for name, value in d.items():
-                    if hasattr(value, 'conf_type'):
-                        tp = value.conf_type
+                    #print('..{} -> {} = {}'.format(name, type(value), hasattr(value, 'to_value')))
+                    if hasattr(value, 'to_value'):
+                        tp = value.to_value
                     else:
                         tp = type(value)
                     d_d[name] = tp(c_d[name])
 
-        #print('[ CONFIG ] {}'.format(self._data))
+        #print(self._data)
+
+    def _fix_dict(self, d):
+        if type(d) == dict:
+            d = deepcopy(d)
+            for name, value in d.items():
+                if hasattr(value, 'conf_type'):
+                    tp = value.conf_type
+                else:
+                    tp = type(value)
+                d[name] = tp(d[name])
+        return d
 
     def save(self):
-        print("SAVE {}".format(self._data))
-
+        print('[ SAVE ]')
         path = self.get_conf_path()
         dir_path = dirname(path)
         if not exists(dir_path):
             os.makedirs(dir_path)
 
+        #print(self._data)
+
         for title, d in self.structure.items():
             if type(d) == dict:
                 c_d = self._config[title]
                 d_d = self._data[title]
-                for name, _ in d.items():
-                    val = str(d_d[name])
-                    print(">>> {}".format(val))
-                    c_d[name] = val
-
-        print("SAVE {}".format(self._data))
+                for name, value in d.items():
+                    if hasattr(value, 'from_value'):
+                        value = value.from_value(d_d[name])
+                    else:
+                        value = str(d_d[name])
+                    c_d[name] = value
 
         with open(path, 'w') as configfile:
             self._config.write(configfile)
@@ -128,10 +142,10 @@ class _AppConfig(SimpleConfig):
                     if a + "_" + b == item:
                         st_b = st[b]
                         #print('{} -> {}'.format(it[b], value))
-                        if hasattr(st_b, 'from_value'):
-                            it[b] = st_b.from_value(value)
-                        else:
-                            it[b] = value
+                        # if hasattr(st_b, 'from_value'):
+                        #     it[b] = st_b.from_value(value)
+                        # else:
+                        it[b] = value
 
 
 class BaseValue:
@@ -218,7 +232,8 @@ class ConnectConfig(_AppConfig):
         super().__init__(conf_name=conf_name, structure={'user': {
             'mutes': '',
             'last_reads': '',
-            'favorites_messages': ''
+            'favorites_messages': '',
+            'pinned_chats': ''
         }})
 
     def get_last_reads(self):
@@ -230,6 +245,14 @@ class ConnectConfig(_AppConfig):
         print(f'....... lasts:\n{lasts}\n<<<<<<<<<\n')
         self.user_last_reads = ','.join('{}:{}'.format(key, val) for key, val in lasts.items())
         print(f'>>>>>>> user_last_reads:\n{self.user_last_reads}\n<<<<<<<<<\n')
+
+    def get_pinned_chats(self):
+        pinned = self.user_pinned_chats.split(',')
+        return [int(p) for p in pinned if p]
+
+    def set_pinned_chats(self, pinned):
+        self.user_pinned_chats = ','.join([str(p) for p in pinned])
+
 
 
 if __name__=='__main__':

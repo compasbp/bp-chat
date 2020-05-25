@@ -1,35 +1,22 @@
 
-from os.path import join, expanduser
-
-from bp_chat.core.app_common import get_app_dir_path, with_uid_suf, APP_NAME_DIR
 from bp_chat.core.local_db_core import LocalDbCore
 
 
-def getDownloadsFilePath(filename, file_uuid):
-    _filename = FilesMap.get(filename, file_uuid)
-    return join(getDownloadsDirectoryPath(), APP_NAME_DIR, _filename)
-
-def getDownloadsDirectoryPath():
-    return join(expanduser('~'), 'Downloads')
-
-def get_files_db_path():
-    return join(get_app_dir_path(), with_uid_suf('.chat'), 'files.db')
-
-
-class FilesMap(LocalDbCore):
+class MessagesMap(LocalDbCore):
 
     images = {}
 
     @classmethod
-    def get(cls, filename, file_uuid):
-        fut = cls.executor().submit(cls._get, filename, file_uuid)
+    def get_range(cls, chat_id, last_message=0, range=100):
+        fut = cls.executor().submit(cls._get_range, chat_id, last_message, range)
         return fut.result()
 
     @classmethod
-    def _get(cls, filename, file_uuid):
+    def _get_range(cls, chat_id, last_message, range):
         conn = cls.get_instance().conn
         cursor = conn.cursor()
-        _ = cursor.execute('SELECT * FROM files WHERE uuid=?', (file_uuid,))
+        if last_message <= 0:
+            _ = cursor.execute('SELECT * FROM messages WHERE chat_id=?', (chat_id,))
         row = cursor.fetchone()
         if row:
             filename = row[3]
@@ -48,3 +35,7 @@ class FilesMap(LocalDbCore):
             filename = new_filename
 
         return filename
+
+    @classmethod
+    def insert_message(cls, message):
+        pass

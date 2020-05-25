@@ -23,7 +23,7 @@ class LocalDbCore:
     def __init__(self):
         db_path = get_files_db_path()
         self.conn = sqlite3.connect(db_path)
-        ret = self.conn.execute('''CREATE TABLE IF NOT EXISTS versions (
+        _ = self.conn.execute('''CREATE TABLE IF NOT EXISTS versions (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     name text NOT NULL )''')
         self.conn.commit()
@@ -38,7 +38,7 @@ class LocalDbCore:
             cursor.execute("INSERT INTO versions (name) VALUES (?)", ("fix_1",))
             self.conn.commit()
 
-        ret = self.conn.execute('''CREATE TABLE IF NOT EXISTS files (
+        _ = self.conn.execute('''CREATE TABLE IF NOT EXISTS files (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name text NOT NULL,
             uuid text NOT NULL UNIQUE,

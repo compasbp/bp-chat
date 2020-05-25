@@ -190,12 +190,22 @@ class WordsLine(LineBase, list):
         if sel_start and sel_end:
             select_start_in_this_line = line_start <= sel_start[1] <= line_end
             select_end_in_this_line = line_start <= sel_end[1] <= line_end
-            select_start_upper = sel_start[1] <= line_start
-            select_end_lower = sel_end[1] >= line_end
+            select_start_upper = (sel_start[1] <= line_start or sel_end[1] <= line_start)
+            select_end_lower = (sel_end[1] >= line_end or sel_start[1] >= line_end)
 
         selected_words = []
 
         temp_pen = painter.pen()
+
+        # ----
+        # pen_changed = True
+        # painter.setPen(QPen(QColor("#ff0000")))
+        # painter.drawRect(QRect(QPoint(left, line_start), QPoint(right, line_end)))
+        # if sel_start and sel_end:
+        #     painter.setPen(QPen(QColor("#007700")))
+        #     painter.drawRect(QRect(QPoint(sel_start[0], sel_start[1]), QPoint(sel_end[0], sel_end[1])))
+        # painter.setPen(QPen(QColor("#000000")))
+        # ----
 
         w_left = left
         for w in self:
@@ -221,10 +231,11 @@ class WordsLine(LineBase, list):
                 if sel_start and sel_end:
                     if (
                             (select_start_upper and select_end_lower) or
-                            (select_start_in_this_line and select_end_in_this_line and a_left >= sel_start[
-                                0] and a_right <= sel_end[0]) or
-                            (select_start_in_this_line and not select_end_in_this_line and a_left >= sel_start[0]) or
-                            (not select_start_in_this_line and select_end_in_this_line and a_right <= sel_end[0])
+                            (select_start_in_this_line and select_end_in_this_line and
+                                ((a_left >= sel_start[0] and a_right <= sel_end[0]) or
+                                (a_left >= sel_end[0] and a_right <= sel_start[0])))
+                            or (select_start_in_this_line and select_end_lower and a_left >= sel_start[0])
+                            or (select_start_upper and select_end_in_this_line and a_right <= sel_end[0])
                     ):
                         painter.fillRect(QRectF(QPointF(a_left, top_now - self.font_height+2), QPointF(a_right, top_now+2)),
                                          QColor("#cccccc"))

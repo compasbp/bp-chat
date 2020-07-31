@@ -13,6 +13,7 @@ class LocalDbCore:
 
     _instance = None
     __executor = None
+    _registered = set()
 
     @classmethod
     def executor(cls):
@@ -20,33 +21,44 @@ class LocalDbCore:
             cls.__executor = ThreadPoolExecutor(max_workers=1)
         return cls.__executor
 
-    def __init__(self):
-        db_path = get_files_db_path()
-        self.conn = sqlite3.connect(db_path)
-        _ = self.conn.execute('''CREATE TABLE IF NOT EXISTS versions (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name text NOT NULL )''')
-        self.conn.commit()
+    @classmethod
+    def register(cls, reg_cls):
+        LocalDbCore._registered.add(reg_cls)
 
-        cursor = self.conn.cursor()
+    @classmethod
+    def startup(cls, conn):
+        _ = conn.execute('''CREATE TABLE IF NOT EXISTS versions (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            name text NOT NULL )''')
+        conn.commit()
+
+        cursor = conn.cursor()
         cursor.execute('SELECT name FROM versions')
         _versions = [row[0] for row in cursor]
         if "fix_1" not in _versions:
             print('[ DB-FIX ] fix_1')
-            self.conn.execute('DROP TABLE IF EXISTS files')
-            self.conn.commit()
+            conn.execute('DROP TABLE IF EXISTS files')
+            conn.commit()
             cursor.execute("INSERT INTO versions (name) VALUES (?)", ("fix_1",))
-            self.conn.commit()
+            conn.commit()
 
-        _ = self.conn.execute('''CREATE TABLE IF NOT EXISTS files (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name text NOT NULL,
-            uuid text NOT NULL UNIQUE,
-            filename text NOT NULL UNIQUE )''')
-        self.conn.commit()
+        _ = conn.execute('''CREATE TABLE IF NOT EXISTS files (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name text NOT NULL,
+                    uuid text NOT NULL UNIQUE,
+                    filename text NOT NULL UNIQUE )''')
+        conn.commit()
+
+    def __init__(self):
+        db_path = get_files_db_path()
+        self.conn = sqlite3.connect(db_path)
+        for reg in LocalDbCore._registered:
+            reg.startup(self.conn)
 
     @classmethod
     def get_instance(cls):
         if not cls._instance:
             cls._instance = LocalDbCore()
         return cls._instance
+
+LocalDbCore.register(LocalDbCore)

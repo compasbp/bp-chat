@@ -229,13 +229,14 @@ class WordsLine(LineBase, list):
                 a_right = a_left + a_w
 
                 if sel_start and sel_end:
+                    aw2 = a_w / 2
                     if (
                             (select_start_upper and select_end_lower) or
                             (select_start_in_this_line and select_end_in_this_line and
-                                ((a_left >= sel_start[0] and a_right <= sel_end[0]) or
-                                (a_left >= sel_end[0] and a_right <= sel_start[0])))
-                            or (select_start_in_this_line and select_end_lower and a_left >= sel_start[0])
-                            or (select_start_upper and select_end_in_this_line and a_right <= sel_end[0])
+                                ((a_left+aw2 >= sel_start[0] and a_right-aw2 <= sel_end[0]) or
+                                (a_left+aw2 >= sel_end[0] and a_right-aw2 <= sel_start[0])))
+                            or (select_start_in_this_line and select_end_lower and (a_left+aw2) >= sel_start[0])
+                            or (select_start_upper and select_end_in_this_line and (a_right-aw2) <= sel_end[0])
                     ):
                         painter.fillRect(QRectF(QPointF(a_left, top_now - self.font_height+2), QPointF(a_right, top_now+2)),
                                          QColor("#cccccc"))

@@ -1,7 +1,8 @@
 
 from PyQt5.QtWidgets import (QItemDelegate, QListView, QFrame, QStyledItemDelegate, QMenu, QScrollBar,
                              QAbstractItemView, QApplication, QScrollBar, QGraphicsOpacityEffect)
-from PyQt5.QtGui import (QColor, QPainter, QFont, QFontMetrics, QPixmap, QCursor, QPen, QGuiApplication, QFontMetricsF)
+from PyQt5.QtGui import (QColor, QPainter, QFont, QFontMetrics, QPixmap, QCursor, QPen, QGuiApplication, QFontMetricsF,
+                         QPainterPath)
 from PyQt5.QtCore import (QAbstractListModel, QSize, QPointF, QPoint, QRectF, QRect, pyqtSignal, QEvent, Qt, QItemSelection,
                           QItemSelectionModel, QPropertyAnimation, QEasingCurve, QPersistentModelIndex)
 
@@ -200,6 +201,13 @@ class ListView(QListView):
         else:
             self.model().layoutAboutToBeChanged.emit(lst)
             self.model().layoutChanged.emit(lst)
+
+    # def paintEvent(self, e):
+    #     painter = QPainter(self)
+    #     painter.begin(self)
+    #     painter.fillRect(QRectF(0, 0, self.width(), self.height()), QColor('#777777'))
+    #     #painter.end()
+    #     return super().paintEvent(e)
 
 
 class ChatsListView(ListView):
@@ -559,6 +567,8 @@ class ListDelegate(QItemDelegate):
 
         item = self.list_model.data(index)
 
+        right = left + self.getItemWidth(item)
+
         #print(":::", id(item))
 
         if type(item.item) == LoadMessagesButton:
@@ -684,6 +694,8 @@ class ListDelegate(QItemDelegate):
             background_color = QColor(240, 240, 240)
 
         # option.rect.adjusted(1, 1, -1, -1)
+        if not background_color:
+            return
         painter.fillRect(option.rect.adjusted(1, 0, -1, 0), background_color)  # Qt.SolidPattern)
 
     def selected_color(self, selected_items):
@@ -840,9 +852,12 @@ class ListDelegate(QItemDelegate):
 
     def sizeHint(self, option, index):
         item = self.list_model.data(index)
-        width = self.listView.width()
-        h = self.list_model.getItemHeight(item, option)
+        width = self.getItemWidth(item)
+        h = self.list_model.getItemHeight(item, option, width)
         return QSize(width, h)
+
+    def getItemWidth(self, item):
+        return self.listView.width()
 
     def color_from_item(self, item):
         item_color = self.list_model.getItemColor(item)
@@ -1091,7 +1106,7 @@ class ListModel(QAbstractListModel):
     def getItemStatusColor(self, item):
         return item.getStatusColor()
 
-    def getItemHeight(self, item, option):
+    def getItemHeight(self, item, option, width):
         return 70
 
     def getRightAdd(self):
@@ -1211,7 +1226,8 @@ class ChatsModel(ListModel):
 
 class MessagesListDelegate(ListDelegate):
 
-    COLOR_MY_MESSAGE = "#eeeeee"
+    COLOR_MESSAGES_CLEAN = "#E5DDD5" #"#f8e7b4" #"#eeeeee" # "#555555"
+    COLOR_MY_MESSAGE = "#DCF8C6" #"#e1ffe7" #"#cde4cd"
     COLOR_MESSAGE_NOT_READED = "#fae0c6"
 
     # def prepareMessageStartPosition(self, left, top):
@@ -1227,7 +1243,7 @@ class MessagesListDelegate(ListDelegate):
             PMessage(margin_top=5, debug=P_DEBUG),
             #PStretch(debug=DEBUG),
             #PChatDownLine(),
-            PHLayout(PStretch(height=2), PLastTime(), PMessageDelivered(margin_left=2)),
+            PHLayout(PStretch(height=2), PLastTime(), PMessageDelivered(margin_left=2, margin_right=5)),
             margin_right=0, margin_top=5
         ), debug=P_DEBUG
     )
@@ -1353,6 +1369,18 @@ class MessagesListDelegate(ListDelegate):
             selected_lines = []
             last_selected_line_i = -1
 
+            pad = 5
+            lh = 12
+            path = QPainterPath()
+            path.addRoundedRect(QRectF(QPointF(left-pad, top-lh-pad), QPointF(right+pad, bottom+lh+pad)), 5, 5)
+            # pen = QPen(Qt.black, 10)
+            # p.setPen(pen)
+            MES_COLOR = self.COLOR_ITEM_CLEAN
+            if self.is_message_from_current_user(item.message):
+                MES_COLOR = self.COLOR_MY_MESSAGE
+            painter.fillPath(path, QColor(MES_COLOR))
+            #painter.drawPath(path)
+
             for i, words_line in enumerate(lines):
 
                 line_height = words_line.line_height
@@ -1456,12 +1484,17 @@ class MessagesListDelegate(ListDelegate):
 
         if type(message) != LoadMessagesButton:
 
+            background_color = None# self.COLOR_MESSAGES_CLEAN #self.COLOR_MY_MESSAGE
+
             if self.is_message_from_current_user(message):
-                background_color = self.COLOR_MY_MESSAGE
+                pass #background_color = self.COLOR_MY_MESSAGE
 
             elif not message.getDelivered():
                 background_color = self.COLOR_MESSAGE_NOT_READED
                 self.list_model.add_to_delivered_by_gui(message.mes_id)
+
+            if not background_color:
+                return
 
         return color_from_hex(background_color)
 
@@ -1551,6 +1584,12 @@ class MessagesListDelegate(ListDelegate):
         ret = super().sizeHint(option, index)
         return ret
 
+    def getItemWidth(self, item):
+        width = self.listView.width()
+        if width > 550:
+            width = 550
+        return width
+
     def on_custom_selection_changed(self, custom_selection):
         self.list_model.update_items()
         return True
@@ -1567,7 +1606,7 @@ class MessagesListDelegate(ListDelegate):
     def selected_color(self, selected_items):
         if len(selected_items) == 1:
             return
-        return color_from_hex('#fae298')
+        return color_from_hex('#2C8DF3')#'#fae298')
 
 
 class MessagesListModel(ListModel):
@@ -1588,18 +1627,16 @@ class MessagesListModel(ListModel):
     def _need_print_reset(self):
         return True
 
-    def getItemHeight(self, item, option):
+    def getItemHeight(self, item, option, width):
 
-        #message_left, message_top = self.delegate.prepareMessageStartPosition(0, 0)
-
-        #left_top_right_bottom = message_left, message_top, right, 99999
         if type(item.message) != LoadMessagesButton:
 
             second_text = self.getItemSecondText(item)
-            if second_text:
-                right = option.rect.right()
+            quote = item.message.quote
+            if second_text or quote:
+                #width = option.rect.right()
 
-                m_rect, max_bottom = self.delegate._PARTS.message_part.calc_rect(item, self.delegate, right)
+                m_rect, max_bottom = self.delegate._PARTS.message_part.calc_rect(item, self.delegate, width)
 
                 message_height, new_lines = self.delegate.prepareMessageText(item, second_text, m_rect)
                 #h = (len(new_lines)) * line_height

@@ -9,7 +9,7 @@ def item_from_object(obj, item_cls):
         obj.item = item
     return item
 
-# rgba(140,95,56,255);
+# rgba(140,95,56,255); ;
 V_SCROLL_SHOW = """
 QScrollBar:vertical {
     border: none;
@@ -34,5 +34,8 @@ QScrollBar::sub-line:vertical {
     height: 0px;
     subcontrol-position: top;
     subcontrol-origin: margin;
+}
+MessagesListView {
+    background: rgba(229,221,213,255);
 }
 """

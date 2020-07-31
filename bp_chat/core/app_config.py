@@ -208,7 +208,7 @@ class AppConfig(_AppConfig):
     def __init__(self, conf_name=with_uid_suf(".chat")+"/messages.conf"):
         super().__init__(conf_name=conf_name, structure={'server':{
             'server': '0',
-            'local_server': '0',
+            'server2': '0',
             'useServer2': BoolValue('0'),
             'started': BoolValue('0'),
             'user_name_start': ''

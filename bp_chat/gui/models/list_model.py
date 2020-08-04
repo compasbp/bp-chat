@@ -1652,6 +1652,7 @@ class MessagesListModel(ListModel):
 
     def set_items_dict(self, val):
         keys = list(val.keys())
+        #print(keys, len(keys))
         min_message_id = min(keys) if len(keys) > 0 else None
         self.min_message_id = min_message_id
 

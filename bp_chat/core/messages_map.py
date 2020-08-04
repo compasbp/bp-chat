@@ -1,10 +1,11 @@
 
 from bp_chat.core.local_db_core import LocalDbCore
-
+from bp_chat.logic.datas.Message import Message
 
 class MessagesMap(LocalDbCore):
 
     images = {}
+
 
     @classmethod
     def startup(cls, conn):
@@ -26,38 +27,39 @@ class MessagesMap(LocalDbCore):
         # mes_id, server, chat_id, sender_id, time, text, file, file_size, delivered, api_type, api_kwargs
 
     @classmethod
-    def get_range(cls, chat_id, last_message=0, range=100):
-        fut = cls.executor().submit(cls._get_range, chat_id, last_message, range)
+    def get_range(cls, server, chat_id, last_message=0, range=100):
+        fut = cls.executor().submit(cls._get_range, server, chat_id, last_message, range)
         return fut.result()
 
     @classmethod
-    def _get_range(cls, chat_id, last_message, range):
+    def _get_range(cls, server, chat_id, last_message, range):
         conn = cls.get_instance().conn
         cursor = conn.cursor()
+        lst = []
         if last_message <= 0:
-            _ = cursor.execute('SELECT * FROM messages WHERE chat_id=?', (chat_id,))
-        row = cursor.fetchone()
-        if row:
-            filename = row[3]
-        elif filename:
-            _ = cursor.execute('SELECT count(id) FROM files WHERE name=?', (filename,))
-            row = cursor.fetchone()
-            num = row[0] + 1
-            if '.' in filename:
-                lst = filename.split(".")
-                pre, sub = '.'.join(lst[:-1]), lst[-1]
-                new_filename = '{}_bp{}.{}'.format(pre, num, sub)
-            else:
-                new_filename = '{}_bp{}'.format(filename, num)
-            cursor.execute("INSERT INTO files (name, uuid, filename) VALUES (?, ?, ?)", (filename, file_uuid, new_filename))
-            conn.commit()
-            filename = new_filename
-
-        return filename
+            cursor.execute('SELECT mes_id, chat_id, sender_id, text, time, file, file_size, delivered, api_type, api_kwargs FROM messages WHERE server=? AND chat_id=? ORDER BY ID DESC LIMIT ?',
+                           (server, chat_id, range))
+        else:
+            #                      0       1        2          3     4     5     6          7          8         9
+            cursor.execute('SELECT mes_id, chat_id, sender_id, text, time, file, file_size, delivered, api_type, api_kwargs FROM messages WHERE server=? AND chat_id=? AND ID<? ORDER BY ID DESC LIMIT ?',
+                           (server, chat_id, last_message, range))
+        for row in cursor:
+            m = Message(row[3], row[0])
+            m.chat_id = row[1]
+            m.sender_id = row[2]
+            m.timestamp = row[4]
+            m.file = row[5]
+            m.file_size = row[6]
+            m.delivered = row[7]
+            m.api_type = row[8]
+            m.api_kwargs = row[9]
+            lst.append(m)
+        return lst[::-1]
 
     @classmethod
     def insert_message(cls, message, server):
-        pass
+        fut = cls.executor().submit(cls._insert_message, message, server)
+        return fut.result()
 
     @classmethod
     def _insert_message(cls, message, server):
@@ -84,10 +86,20 @@ class MessagesMap(LocalDbCore):
         #
         #     _selected_text = None
 
-        _ = cursor.execute("""INSERT INTO messages 
-        (mes_id, server, chat_id, sender_id, time, text, file, file_size, delivered, api_type, api_kwargs) VALUES 
-        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                           (m.mes_id, server, m.chat_id, m.sender_id, m.time, m.text, m.file, m.file_size,
-                            m.delivered, m.api_type, m.api_kwargs))
+        _ = cursor.execute('SELECT delivered FROM messages WHERE server=? AND mes_id=?', (server, m.mes_id))
+        row = cursor.fetchone()
+        if row:
+            if row[0] != m.delivered:
+                _ = cursor.execute("""UPDATE messages SET delivered=? WHERE server=? AND mes_id=?""",
+                                   (m.delivered, server, m.mes_id))
+                conn.commit()
+        else:
+            print('ADD')
+            _ = cursor.execute("""INSERT INTO messages 
+            (mes_id, server, chat_id, sender_id, time, text, file, file_size, delivered, api_type, api_kwargs) VALUES 
+            (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                               (m.mes_id, server, m.chat_id, m.sender_id, m.timestamp, m.text, m.file, m.file_size,
+                                m.delivered, m.api_type, m.api_kwargs))
+            conn.commit()
 
 LocalDbCore.register(MessagesMap)

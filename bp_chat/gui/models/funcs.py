@@ -39,3 +39,16 @@ MessagesListView {
     background: rgba(229,221,213,255);
 }
 """
+
+MAIN_STYLESHEET = """
+QListView {border-right: 1px solid #cccccc; background-color: #ffffff;}
+QPushButton {background-color: #ffffff; border: 1px solid #cccccc; border-radius: 5px; padding: 5px; padding-left: 10px; padding-right: 10px; min-width: 80px; }
+QPushButton:hover {background-color: #eeeeee;}
+QPushButton#updateButton { background-color: #ffc107; border: 1px solid #d19f0a; border-radius: none; }
+QPushButton#updateButton:hover {background-color: #f9d158;}
+QDialog { background: #ffffff; font-size: 14px; font-family: Arial; }
+QDialog QLabel { color: #333333; font-size: 14px; font-family: Arial; }
+QDialog QPushButton { color: #333333; font-size: 14px; font-family: Arial; }
+"""
+
+FULL_STYLESHEET = V_SCROLL_SHOW + MAIN_STYLESHEET

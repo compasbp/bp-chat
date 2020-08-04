@@ -220,6 +220,7 @@ class AppConfig(_AppConfig):
             'maximized': BoolValue('0'),
             'x': IntValue('-1'),
             'y': IntValue('-1'),
+            'fontSize':IntValue('-1'),
         }, 'user':{
             'lang': 'ru'
         }})

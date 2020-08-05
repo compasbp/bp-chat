@@ -575,7 +575,8 @@ class FileItemWidget(QWidget):
         lay.removeWidget(self)
 
 
-# class InputLine(QWidget):
+
+# class InputLine(QWidget): FIXME LEV: Считаю что нужно удалить
 
 #     def __init__(self, parent=None):
 #         super().__init__(parent)

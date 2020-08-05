@@ -492,8 +492,8 @@ class MessageInputWidget(QWidget):
         self.lay.addLayout(self.stack_top)
         self.lay.addLayout(self.stack_bottom)
 
-        self.input_line = InputLine(self)
-        self.stack_bottom.addWidget(self.input_line)
+        # self.input_line = InputLine(self)
+        # self.stack_bottom.addWidget(self.input_line)
 
         self.files_line = FilesLine(self)
         #self.files_line.add_file("Some file.png", "file")
@@ -575,23 +575,23 @@ class FileItemWidget(QWidget):
         lay.removeWidget(self)
 
 
-class InputLine(QWidget):
+# class InputLine(QWidget):
 
-    def __init__(self, parent=None):
-        super().__init__(parent)
+#     def __init__(self, parent=None):
+#         super().__init__(parent)
 
-        self.lay = QGridLayout(self)
-        self.lay.setColumnStretch(0, 100)
-        self.lay.setContentsMargins(0, 0, 0, 0)
+#         self.lay = QGridLayout(self)
+#         self.lay.setColumnStretch(0, 100)
+#         self.lay.setContentsMargins(0, 0, 0, 0)
 
         #set_widget_background(self, '#ffffff')
 
-        self.text_edit = QTextEdit()
-        self.text_edit.setFrameShape(QFrame.NoFrame)
-        set_widget_background(self.text_edit, '#ffffff')
-        self.text_edit.setStyleSheet("QTextEdit { padding-left:10; padding-top:10; padding-bottom:10; padding-right:10}")
-        self.send_button = ImagedButton.by_iconname("send")
-        self.lay.addWidget(self.text_edit, 0, 0)
-        self.lay.addWidget(self.send_button, 0, 1)
+        # self.text_edit = QTextEdit()
+        # self.text_edit.setFrameShape(QFrame.NoFrame)
+        # set_widget_background(self.text_edit, '#ffffff')
+        # self.text_edit.setStyleSheet("QTextEdit { padding-left:10; padding-top:10; padding-bottom:10; padding-right:10}")
+        # self.send_button = ImagedButton.by_iconname("send")
+        # self.lay.addWidget(self.text_edit, 0, 0)
+        # self.lay.addWidget(self.send_button, 0, 1)
 
-        self.text_edit.setAcceptDrops(False)
+        # self.text_edit.setAcceptDrops(False)

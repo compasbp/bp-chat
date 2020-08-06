@@ -65,7 +65,7 @@ class ListView(QListView):
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
-        # self.setStyleSheet(V_SCROLL_SHOW)
+        self.setStyleSheet(V_SCROLL_SHOW)
 
         scroll: QScrollBar = self.verticalScrollBar()
         #scroll.setPageStep(10)

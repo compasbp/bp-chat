@@ -9,6 +9,16 @@ class MessagesMap(LocalDbCore):
 
     @classmethod
     def startup(cls, conn):
+        cursor = conn.cursor()
+        cursor.execute('SELECT name FROM versions')
+        _versions = [row[0] for row in cursor]
+        if "fix_2" not in _versions:
+            print('[ DB-FIX ] fix_2')
+            conn.execute('DELETE FROM messages')
+            conn.commit()
+            cursor.execute("INSERT INTO versions (name) VALUES (?)", ("fix_2",))
+            conn.commit()
+
         _ = conn.execute('''CREATE TABLE IF NOT EXISTS messages (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             mes_id INTEGER NOT NULL,
@@ -27,7 +37,7 @@ class MessagesMap(LocalDbCore):
         # mes_id, server, chat_id, sender_id, time, text, file, file_size, delivered, api_type, api_kwargs
 
     @classmethod
-    def get_range(cls, server, chat_id, last_message=0, range=100):
+    def get_range(cls, server, chat_id, last_message=0, range=20):
         fut = cls.executor().submit(cls._get_range, server, chat_id, last_message, range)
         return fut.result()
 
@@ -66,40 +76,33 @@ class MessagesMap(LocalDbCore):
         conn = cls.get_instance().conn
         cursor = conn.cursor()
         m = message
-        #     text = ""
-        #     sender_id = None
-        #     mes_id = None
-        #     chat_id = None
-        #
-        #     quote:QuoteInfo = None
-        #     file = None
-        #     file_size = None
-        #
-        #     _time = None
-        #     is_html = False
-        #     has_links = False
-        #     _links = []
-        #     _delivered = True # delivered?
-        #
-        #     api_type = None
-        #     api_kwargs = None
-        #
-        #     _selected_text = None
-
-        _ = cursor.execute('SELECT delivered FROM messages WHERE server=? AND mes_id=?', (server, m.mes_id))
-        row = cursor.fetchone()
-        if row:
-            if row[0] != m.delivered:
-                _ = cursor.execute("""UPDATE messages SET delivered=? WHERE server=? AND mes_id=?""",
-                                   (m.delivered, server, m.mes_id))
-                conn.commit()
-        else:
+        if not cls._set_message_delivered(m.mes_id, server, m.delivered):
             print('ADD')
             _ = cursor.execute("""INSERT INTO messages 
             (mes_id, server, chat_id, sender_id, time, text, file, file_size, delivered, api_type, api_kwargs) VALUES 
             (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                               (m.mes_id, server, m.chat_id, m.sender_id, m.timestamp, m.text, m.file, m.file_size,
+                               (m.mes_id, server, m.chat_id, m.sender_id, m.timestamp, m._text, m.file, m.file_size,
                                 m.delivered, m.api_type, m.api_kwargs))
             conn.commit()
+
+    @classmethod
+    def set_message_delivered(cls, mes_id, server, delivered):
+        fut = cls.executor().submit(cls._set_message_delivered, mes_id, server, delivered)
+        return fut.result()
+
+    @classmethod
+    def _set_message_delivered(cls, mes_id, server, delivered):
+        conn = cls.get_instance().conn
+        cursor = conn.cursor()
+        _ = cursor.execute('SELECT delivered FROM messages WHERE server=? AND mes_id=?', (server, mes_id))
+        row = cursor.fetchone()
+        if not row:
+            return False
+        if row[0] != delivered:
+            _ = cursor.execute("""UPDATE messages SET delivered=? WHERE server=? AND mes_id=?""",
+                                (delivered, server, mes_id))
+            conn.commit()
+        return True
+        
 
 LocalDbCore.register(MessagesMap)

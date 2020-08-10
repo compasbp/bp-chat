@@ -1614,6 +1614,7 @@ class MessagesListModel(ListModel):
     is_only_files = False
     is_only_favorites = False
     min_message_id = -1
+    _find_in_chat_line = ''
 
     def __init__(self, listView):
         super().__init__(listView, list_delegate_cls=MessagesListDelegate)
@@ -1678,6 +1679,19 @@ class MessagesListModel(ListModel):
         if hasattr(m, 'NOT_MESSAGE'):
             m = None
         return m
+    
+    @property
+    def find_in_chat_line(self):
+        return self._find_in_chat_line
+
+    @find_in_chat_line.setter
+    def find_in_chat_line(self, val):
+        self._find_in_chat_line = val
+        if len(val) == 0:
+            self.needShowFindLine(False)
+
+    def needShowFindLine(self, val):
+        pass
 
     def filt(self, k, m):
         ok = True
@@ -1686,6 +1700,9 @@ class MessagesListModel(ListModel):
             ok = False
 
         if self.is_only_favorites and not self.is_message_in_favorites(m):
+            ok = False
+
+        if len(self._find_in_chat_line) > 0 and not self.message_has_text(m, self._find_in_chat_line):
             ok = False
 
         return ok
@@ -1710,6 +1727,9 @@ class MessagesListModel(ListModel):
         return 10
 
     def is_message_in_favorites(self, mes):
+        return False
+
+    def message_has_text(self, mes, text):
         return False
 
 

@@ -6,19 +6,9 @@ class MessagesMap(LocalDbCore):
 
     images = {}
 
-
     @classmethod
     def startup(cls, conn):
-        cursor = conn.cursor()
-        cursor.execute('SELECT name FROM versions')
-        _versions = [row[0] for row in cursor]
-        if "fix_2" not in _versions:
-            print('[ DB-FIX ] fix_2')
-            conn.execute('DELETE FROM messages')
-            conn.commit()
-            cursor.execute("INSERT INTO versions (name) VALUES (?)", ("fix_2",))
-            conn.commit()
-
+        print('[ MessagesMap ]->[ startup ]')
         _ = conn.execute('''CREATE TABLE IF NOT EXISTS messages (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             mes_id INTEGER NOT NULL,
@@ -34,7 +24,16 @@ class MessagesMap(LocalDbCore):
             api_kwargs TEXT
         )''')
         conn.commit()
-        # mes_id, server, chat_id, sender_id, time, text, file, file_size, delivered, api_type, api_kwargs
+
+        cursor = conn.cursor()
+        cursor.execute('SELECT name FROM versions')
+        _versions = [row[0] for row in cursor]
+        if "fix_2" not in _versions:
+            print('[ DB-FIX ] fix_2')
+            conn.execute('DELETE FROM messages')
+            conn.commit()
+            cursor.execute("INSERT INTO versions (name) VALUES (?)", ("fix_2",))
+            conn.commit()
 
     @classmethod
     def get_range(cls, server, chat_id, last_message=0, range=20):

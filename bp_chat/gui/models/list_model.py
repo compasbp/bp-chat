@@ -1660,7 +1660,7 @@ class MessagesListModel(ListModel):
         messages_dict = { int(k):v for k, v in val.items() if self.filt(k, v) }
         keys_list = sorted(list(messages_dict.keys()), key=lambda key: (messages_dict[key].datetime, key))
 
-        if len(messages_dict) >= 20 or (self.is_only_files or self.is_only_favorites) or min_message_id == None: # FIXME
+        if True: #len(messages_dict) >= 20 or (self.is_only_files or self.is_only_favorites) or min_message_id == None: # FIXME
             messages_dict.keys()
             messages_dict[-1] = LoadMessagesButton()
             keys_list.insert(0, -1)

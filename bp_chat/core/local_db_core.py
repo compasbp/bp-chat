@@ -13,7 +13,7 @@ class LocalDbCore:
 
     _instance = None
     __executor = None
-    _registered = set()
+    _registered = []
 
     @classmethod
     def executor(cls):
@@ -23,10 +23,12 @@ class LocalDbCore:
 
     @classmethod
     def register(cls, reg_cls):
-        LocalDbCore._registered.add(reg_cls)
+        if reg_cls not in LocalDbCore._registered:
+            LocalDbCore._registered.append(reg_cls)
 
     @classmethod
     def startup(cls, conn):
+        print('[ LocalDbCore ]->[ startup ]')
         _ = conn.execute('''CREATE TABLE IF NOT EXISTS versions (
                             id INTEGER PRIMARY KEY AUTOINCREMENT,
                             name text NOT NULL )''')

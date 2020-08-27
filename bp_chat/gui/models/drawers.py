@@ -6,7 +6,7 @@ from PyQt5.QtGui import QFontMetrics, QPainter, QColor, QIcon, QFont, QPen
 from PyQt5.QtCore import Qt, QRectF, QPointF, QSize, QRect, QPoint
 
 from ..core.draw import icon_from_file
-from bp_chat.core.files_map import getDownloadsFilePath, FilesMap
+from bp_chat.core.local_db_files_map import getDownloadsFilePath, LocalDbFilesMap
 from ...logic.data import QuoteInfo
 
 
@@ -302,10 +302,10 @@ class FileLine(LineBase):
             _lower_fullpath = _fullpath.lower()
             if _lower_fullpath.endswith('.jpg') or _lower_fullpath.endswith('.png'):
 
-                icon = FilesMap.images.get(self.file_uuid, None)
+                icon = LocalDbFilesMap.images.get(self.file_uuid, None)
                 if not icon:
                     icon = QIcon(_fullpath)
-                    FilesMap.images[self.file_uuid] = icon
+                    LocalDbFilesMap.images[self.file_uuid] = icon
 
                 sizes = icon.availableSizes()
                 if sizes and len(sizes) > 0:

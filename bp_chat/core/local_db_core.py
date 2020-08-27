@@ -1,8 +1,10 @@
 from os.path import join
 import sqlite3
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
 
 from bp_chat.core.app_common import get_app_dir_path, with_uid_suf, APP_NAME_DIR
+from .tryable import tryable
 
 
 def get_files_db_path():
@@ -34,23 +36,6 @@ class LocalDbCore:
                             name text NOT NULL )''')
         conn.commit()
 
-        cursor = conn.cursor()
-        cursor.execute('SELECT name FROM versions')
-        _versions = [row[0] for row in cursor]
-        if "fix_1" not in _versions:
-            print('[ DB-FIX ] fix_1')
-            conn.execute('DROP TABLE IF EXISTS files')
-            conn.commit()
-            cursor.execute("INSERT INTO versions (name) VALUES (?)", ("fix_1",))
-            conn.commit()
-
-        _ = conn.execute('''CREATE TABLE IF NOT EXISTS files (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name text NOT NULL,
-                    uuid text NOT NULL UNIQUE,
-                    filename text NOT NULL UNIQUE )''')
-        conn.commit()
-
     def __init__(self):
         db_path = get_files_db_path()
         self.conn = sqlite3.connect(db_path)
@@ -59,8 +44,30 @@ class LocalDbCore:
 
     @classmethod
     def get_instance(cls):
-        if not cls._instance:
-            cls._instance = LocalDbCore()
-        return cls._instance
+        if not LocalDbCore._instance:
+            LocalDbCore._instance = LocalDbCore()
+        return LocalDbCore._instance
+
+    @classmethod
+    @contextmanager
+    def no_version(cls, conn, ver):
+        cursor = conn.cursor()
+        cursor.execute('SELECT name FROM versions')
+        _versions = [row[0] for row in cursor]
+        need = ver not in _versions
+        yield need
+        if need:
+            cursor.execute("INSERT INTO versions (name) VALUES (?)", (ver,))
+            conn.commit()
+
+    @classmethod
+    def into_db_executor(cls, func):
+    
+        def new_func(*args, **kwargs):
+            fut = cls.executor().submit(func, *args, **kwargs)
+            return fut.result()
+
+        return new_func
+        
 
 LocalDbCore.register(LocalDbCore)

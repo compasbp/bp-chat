@@ -9,6 +9,8 @@ if __name__=='__main__':
 
 from bp_chat.core.app_common import with_uid_suf
 from bp_chat.core.app_common import get_app_dir_path
+from bp_chat.core.local_db_conf import LocalDbConf
+from bp_chat.core.local_db_chats import LocalDbChats
 
 
 class SimpleConfig:
@@ -18,6 +20,7 @@ class SimpleConfig:
     conf_name = None
     structure = None
     _data = None
+    server_uid = ''
 
     def __init__(self,conf_name, structure=None):
         self.conf_name = conf_name
@@ -37,13 +40,13 @@ class SimpleConfig:
         return self._data[item]
 
     def load(self):
-        print('[ LOAD ]')
-        self._data = {}
+        print('[ LOAD ] si: {}'.format(self.server_uid))
+        self._data = LocalDbConf.get_conf(self.server_uid)
         self._config = ConfigParser(allow_no_value=True)
-        for title, d in self.structure.items():
-            d = self._fix_dict(d)
-            self._config[title] = d
-            self._data[title] = deepcopy(d)
+        # for title, d in self.structure.items():
+        #     d = self._fix_dict(d)
+        #     self._config[title] = d
+        #     self._data[title] = deepcopy(d)
 
         path = self.get_conf_path()
         if exists(path):
@@ -51,19 +54,45 @@ class SimpleConfig:
             self._config.read_string(text)
 
         for title, d in self.structure.items():
+            #print('...!!! {} {}'.format(title, type(d)))
             if type(d) == dict:
-                c_d = self._config[title]
-                d_d = self._data[title]
+                try:
+                    c_d = self._config[title]
+                except:
+                    c_d = {}
+                d_d = self._data.get(title, None)
+                # if d_d == None:
+                #     self._data[title] = d_d = deepcopy(self._fix_dict(d))
+                # cat = self._config_in_db.get(title, None)
+                # if cat == None:
+                #     self._config_in_db = cat = {}
                 for name, value in d.items():
+                    #print('...val: {}'.format(value))
                     #print('..{} -> {} = {}'.format(name, type(value), hasattr(value, 'to_value')))
                     if hasattr(value, 'to_value'):
                         tp = value.to_value
                     else:
                         tp = type(value)
-                    d_d[name] = tp(c_d[name])
+                    #vl = tp(c_d[name])
+                    #d_d[name] = vl
+                    if d_d != None and name in d_d:
+                        #print('...>> 1')
+                        d_d[name] = tp(d_d[name])
+                    else:
+                        if d_d == None:
+                            self._data[title] = d_d = {}
+                        if name in c_d:
+                            #print('...>> 2')
+                            d_d[name] = tp(c_d[name])
+                        else:
+                            vl = tp(d[name])
+                            #print('...!!! >> {} -> {}'.format(name, vl))
+                            d_d[name] = vl
+                        # else:
+                        #     d_d[name] = tp(c_d[name])
 
         #print(self._data)
-
+    
     def _fix_dict(self, d):
         if type(d) == dict:
             d = deepcopy(d)
@@ -76,8 +105,9 @@ class SimpleConfig:
         return d
 
     def save(self):
-        print('[ SAVE ]')
+        print('[ SAVE ] si: {}'.format(self.server_uid))
         path = self.get_conf_path()
+        print('  ... {}'.format(path))
         dir_path = dirname(path)
         if not exists(dir_path):
             os.makedirs(dir_path)
@@ -86,17 +116,22 @@ class SimpleConfig:
 
         for title, d in self.structure.items():
             if type(d) == dict:
-                c_d = self._config[title]
+                #c_d = self._config[title]
                 d_d = self._data[title]
                 for name, value in d.items():
                     if hasattr(value, 'from_value'):
                         value = value.from_value(d_d[name])
                     else:
                         value = str(d_d[name])
-                    c_d[name] = value
+                    #c_d[name] = value
 
-        with open(path, 'w') as configfile:
-            self._config.write(configfile)
+                    LocalDbConf.set_conf_value(self.server_uid, title, name, value)
+
+        # with open(path, 'w') as configfile:
+        #     self._config.write(configfile)
+
+        if exists(path):
+            os.remove(path)
 
     def get_conf_path(self):
         return join(get_app_dir_path(), self.conf_name)
@@ -229,30 +264,77 @@ class AppConfig(_AppConfig):
 class ConnectConfig(_AppConfig):
 
     def __init__(self, server_uid):
+        self.server_uid = server_uid
         conf_name = with_uid_suf(".chat") + "/srvs/" + server_uid
-        super().__init__(conf_name=conf_name, structure={'user': {
-            'mutes': '',
-            'last_reads': '',
-            'favorites_messages': '',
-            'pinned_chats': ''
-        }})
+        super().__init__(conf_name=conf_name, structure={
+            'user': {
+                'mutes': '',                # chats
+                'last_reads': '',           # chats
+                'favorites_messages': '',   # messages
+                'pinned_chats': ''          # chats
+            },
+            'auth': {
+                'utkn': ''
+            }
+        })
 
-    def get_last_reads(self):
-        lasts = self.user_last_reads.split(',')
-        lasts = [la.split(':') for la in lasts if la]
-        return {la[0]:la[1] for la in lasts if len(la) > 0}
+    def load(self):
+        super().load()
+        pinned = self.user_pinned_chats.split(',')
+        pinned = [int(p) for p in pinned if p]
+        print('[pinned] {}'.format(pinned))
+        for chat_id in pinned:
+            self.set_pinned_chat(chat_id, 1)
 
-    def set_last_reads(self, lasts):
-        print(f'....... lasts:\n{lasts}\n<<<<<<<<<\n')
-        self.user_last_reads = ','.join('{}:{}'.format(key, val) for key, val in lasts.items())
-        print(f'>>>>>>> user_last_reads:\n{self.user_last_reads}\n<<<<<<<<<\n')
+        mutes = self.user_mutes
+        mutes = [m for m in (a.strip() for a in mutes.split(',')) if len(m) > 0] if mutes else []
+        print('[mutes] {}'.format(mutes))
+        for chat_id in mutes:
+            self.set_muted_chat(chat_id, 1)
+
+        self.user_mutes = ''
+        self.user_last_reads = ''
+        self.user_favorites_messages = ''
+        self.user_pinned_chats = ''
+
+    def get_utkn(self):
+        return self.auth_utkn
+
+    def set_utkn(self, utkn):
+        self.auth_utkn = utkn
 
     def get_pinned_chats(self):
-        pinned = self.user_pinned_chats.split(',')
-        return [int(p) for p in pinned if p]
+        # pinned = self.user_pinned_chats.split(',')
+        # pinned = [int(p) for p in pinned if p]
+        pinned = set()
+        chats = LocalDbChats.get_chats(self.server_uid)
+        for _, c in chats.items():
+            if c.pinned:
+                pinned.add(c.chat_id)
+        return list(pinned)
 
-    def set_pinned_chats(self, pinned):
-        self.user_pinned_chats = ','.join([str(p) for p in pinned])
+    def get_pinned_chat(self, chat_id):
+        # pinned = self.user_pinned_chats.split(',')
+        # pinned = [int(p) for p in pinned if p]
+        chat = LocalDbChats.get_chat(self.server_uid, chat_id)
+        pinned = chat.pinned
+        return pinned
+
+    # def set_pinned_chats(self, pinned):
+    #     self.user_pinned_chats = ','.join([str(p) for p in pinned])
+
+    def set_pinned_chat(self, chat_id, pinned):
+        LocalDbChats.add_chat(self.server_uid, chat_id, muted=None, pinned=pinned)
+
+    def get_muted_chat(self, chat_id):
+        #mutes = self.user_mutes
+        #[m for m in (a.strip() for a in mutes.split(',')) if len(m) > 0] if mutes else []
+        chat = LocalDbChats.get_chat(self.server_uid, chat_id)
+        muted = chat.muted
+        return muted
+
+    def set_muted_chat(self, chat_id, muted):
+        LocalDbChats.add_chat(self.server_uid, chat_id, muted=muted, pinned=None)
 
 
 

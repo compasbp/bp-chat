@@ -6,7 +6,7 @@ from bp_chat.core.local_db_core import LocalDbCore
 
 
 def getDownloadsFilePath(filename, file_uuid):
-    _filename = FilesMap.get(filename, file_uuid)
+    _filename = LocalDbFilesMap.get(filename, file_uuid)
     return join(getDownloadsDirectoryPath(), APP_NAME_DIR, _filename)
 
 def getDownloadsDirectoryPath():
@@ -16,9 +16,28 @@ def get_files_db_path():
     return join(get_app_dir_path(), with_uid_suf('.chat'), 'files.db')
 
 
-class FilesMap(LocalDbCore):
+class LocalDbFilesMap(LocalDbCore):
 
     images = {}
+
+    @classmethod
+    def startup(cls, conn):
+        print('[ LocalDbFilesMap ]->[ startup ]')
+
+        with cls.no_version(conn, "fix_1") as no:
+            if no:
+                print('[ DB-FIX ] fix_1')
+                conn.execute('DROP TABLE IF EXISTS files')
+                conn.commit()
+                # cursor.execute("INSERT INTO versions (name) VALUES (?)", ("fix_1",))
+                # conn.commit()
+
+        _ = conn.execute('''CREATE TABLE IF NOT EXISTS files (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name text NOT NULL,
+                uuid text NOT NULL UNIQUE,
+                filename text NOT NULL UNIQUE )''')
+        conn.commit()
 
     @classmethod
     def get(cls, filename, file_uuid):
@@ -48,3 +67,5 @@ class FilesMap(LocalDbCore):
             filename = new_filename
 
         return filename
+
+LocalDbCore.register(LocalDbFilesMap)

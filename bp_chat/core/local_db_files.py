@@ -26,11 +26,8 @@ class LocalDbFilesMap(LocalDbCore):
 
         with cls.no_version(conn, "fix_1") as no:
             if no:
-                print('[ DB-FIX ] fix_1')
                 conn.execute('DROP TABLE IF EXISTS files')
                 conn.commit()
-                # cursor.execute("INSERT INTO versions (name) VALUES (?)", ("fix_1",))
-                # conn.commit()
 
         _ = conn.execute('''CREATE TABLE IF NOT EXISTS files (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,

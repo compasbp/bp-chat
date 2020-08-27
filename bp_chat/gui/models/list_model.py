@@ -17,7 +17,7 @@ from .funcs import item_from_object
 from .drawers import (MessageDrawer, WordsLine, FileLine, QuoteAuthor, QuoteLine, QuoteFile, WORD_TYPE_LINK,
                       LINE_TYPE_FILE)
 from ..core.draw import pixmap_from_file, icon_from_file, IconDrawer, draw_icon_from_file
-from bp_chat.core.local_db_files_map import getDownloadsFilePath, LocalDbFilesMap
+from bp_chat.core.local_db_files import getDownloadsFilePath, LocalDbFilesMap
 from .element_parts import (PHLayout, PChatImage, PVLayout, PLogin, PLastMessage, PLastTime, PChatDownLine, PStretch,
                             PChatLayout, PMessageImage, PMessage, PMessageLayout, PMessageLogin, PChatPinned,
                             PChatMuted, PMessageDelivered)
@@ -1613,11 +1613,20 @@ class MessagesListModel(ListModel):
 
     is_only_files = False
     is_only_favorites = False
-    min_message_id = -1
+    _min_message_id = -1
     _find_in_chat_line = ''
 
     def __init__(self, listView):
         super().__init__(listView, list_delegate_cls=MessagesListDelegate)
+
+    @property
+    def min_message_id(self):
+        return self._min_message_id
+
+    @min_message_id.setter
+    def min_message_id(self, val):
+        print('[ min_message_id ] >>> {}'.format(val))
+        self._min_message_id = val
 
     def on_need_download_20(self, min_message_id):
         pass

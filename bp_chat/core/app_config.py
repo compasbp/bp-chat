@@ -304,8 +304,6 @@ class ConnectConfig(_AppConfig):
         self.auth_utkn = utkn
 
     def get_pinned_chats(self):
-        # pinned = self.user_pinned_chats.split(',')
-        # pinned = [int(p) for p in pinned if p]
         pinned = set()
         chats = LocalDbChats.get_chats(self.server_uid)
         for _, c in chats.items():
@@ -314,21 +312,14 @@ class ConnectConfig(_AppConfig):
         return list(pinned)
 
     def get_pinned_chat(self, chat_id):
-        # pinned = self.user_pinned_chats.split(',')
-        # pinned = [int(p) for p in pinned if p]
         chat = LocalDbChats.get_chat(self.server_uid, chat_id)
         pinned = chat.pinned
         return pinned
-
-    # def set_pinned_chats(self, pinned):
-    #     self.user_pinned_chats = ','.join([str(p) for p in pinned])
 
     def set_pinned_chat(self, chat_id, pinned):
         LocalDbChats.add_chat(self.server_uid, chat_id, muted=None, pinned=pinned)
 
     def get_muted_chat(self, chat_id):
-        #mutes = self.user_mutes
-        #[m for m in (a.strip() for a in mutes.split(',')) if len(m) > 0] if mutes else []
         chat = LocalDbChats.get_chat(self.server_uid, chat_id)
         muted = chat.muted
         return muted

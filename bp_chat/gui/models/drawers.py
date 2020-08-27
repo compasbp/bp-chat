@@ -6,7 +6,7 @@ from PyQt5.QtGui import QFontMetrics, QPainter, QColor, QIcon, QFont, QPen
 from PyQt5.QtCore import Qt, QRectF, QPointF, QSize, QRect, QPoint
 
 from ..core.draw import icon_from_file
-from bp_chat.core.local_db_files_map import getDownloadsFilePath, LocalDbFilesMap
+from bp_chat.core.local_db_files import getDownloadsFilePath, LocalDbFilesMap
 from ...logic.data import QuoteInfo
 
 

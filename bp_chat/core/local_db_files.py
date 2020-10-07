@@ -4,8 +4,18 @@ from os.path import join, expanduser
 from bp_chat.core.app_common import get_app_dir_path, with_uid_suf, APP_NAME_DIR
 from bp_chat.core.local_db_core import LocalDbCore
 
+# for console
+INITIAL_FILES_DIR = None
+
+def set_INITIAL_FILES_DIR(p):
+    global INITIAL_FILES_DIR
+    INITIAL_FILES_DIR = p
+
 
 def getDownloadsFilePath(filename, file_uuid):
+    if INITIAL_FILES_DIR:
+        return join(INITIAL_FILES_DIR, filename)
+        
     _filename = LocalDbFilesMap.get(filename, file_uuid)
     return join(getDownloadsDirectoryPath(), APP_NAME_DIR, _filename)
 

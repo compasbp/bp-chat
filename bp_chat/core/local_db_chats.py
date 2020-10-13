@@ -66,7 +66,7 @@ class LocalDbChats(LocalDbCore):
             if pinned == None:
                 pinned = chat.pinned
             if chat.muted != muted or chat.pinned != pinned:
-                _ = cursor.execute("""UPDATE chats SET muted=?, last_read=? WHERE server=? AND chat_id=?""", (muted, pinned, server, chat_id))
+                _ = cursor.execute("""UPDATE chats SET muted=?, pinned=? WHERE server=? AND chat_id=?""", (muted, pinned, server, chat_id))
                 conn.commit()
         else:
             if muted == None:

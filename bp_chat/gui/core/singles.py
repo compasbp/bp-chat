@@ -50,7 +50,6 @@ class MessagesForSend:
 
     def textChanged(self):
         text = self.connectedEditor.toPlainText()
-        #print("TTT:", self.chat_id, type(self.chat_id), text)
         self.data[self.chat_id] = text
         if self.save_timer:
             self.save_timer.cancel()

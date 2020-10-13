@@ -70,7 +70,6 @@ class PBase:
             if ch == self:
                 my_rect = r
             b = r[3] - margins[1]
-            #print(ch.__class__.__name__, b, r[3], margins[3])
             if b > max_bottom:
                 max_bottom = b
         return my_rect, max_bottom

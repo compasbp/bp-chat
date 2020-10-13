@@ -220,7 +220,6 @@ class SideShadow(QWidget):
 
     def eventFilter(self, obj, e):
         if e.type() == QEvent.Resize:
-            #print(1, self._side)
 
             if self._side == SideShadow.DOWN:
                 size = (obj.width(), self.h)
@@ -233,12 +232,10 @@ class SideShadow(QWidget):
                 self.move(obj.x() + obj.width(), obj.y())
 
             self.resize(*size)
-            #self.setMinimumSize(QSize(*size))
 
         return super().eventFilter(obj, e)
 
     def paintEvent(self, event):
-        #print(2)
         painter = QPainter(self)
         sz = self.size()
 
@@ -246,7 +243,6 @@ class SideShadow(QWidget):
 
         start_p = QPoint(0, 0)
         end_p = QPoint(sz.width(), sz.height())
-        #print(f'REDRAW ({start_p.x()},{start_p.y()}) ({end_p.x()},{end_p.y()})')
 
 
 class ImagedButton(QToolButton):

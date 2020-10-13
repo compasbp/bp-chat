@@ -140,8 +140,6 @@ class MessageDrawer:
             to_new_lines.append(line_cls(_words[last_i:]))
             top_now += line_height
 
-        #print(to_new_lines)
-
         return to_new_lines, top_now
 
     @staticmethod
@@ -340,11 +338,9 @@ class FileLine(LineBase):
             _lower_fullpath = _fullpath.lower()
             if _lower_fullpath.endswith('.jpg') or _lower_fullpath.endswith('.png'):
                 icon = QIcon(_fullpath)
-                #self.images[_file_uuid] = icon
                 isz = icon.actualSize(QSize(pixmap_w, pixmap_h))
                 if isz.width() > 0 and isz.height() > 0:
                     pixmap_w, pixmap_h = isz.width(), isz.height()
-                    #print(f'[ DRAW size ] {pixmap_w} {pixmap_h}')
                 else:
                     icon = icon_from_file("file")
             else:
@@ -390,17 +386,11 @@ class FileLine(LineBase):
         )
 
         rect = (left, text_rect.top(), fileNameRect.right(), max([fileNameRect.bottom(), text_rect.top() + pixmap_h]))
-        # is_mouse_in = (
-        #     rect[0] <= mouse_pos[0] <= rect[2] and
-        #     rect[1] <= mouse_pos[1] <= rect[3]
-        # )
         self.rect = rect
         mes_drawer.links.add(self)
-        #print('>> mes_drawer >> links: {}'.format(mes_drawer.links))
 
         if mes_drawer.delegate._mouse_on_link == self:
             painter.setPen(QPen(QColor(mes_drawer.LINK_COLOR_HOVER)))
-            #mes_drawer.delegate.listView._cursor_need_cross = True
         else:
             painter.setPen(QPen(QColor(mes_drawer.RESEND_COLOR)))
 
@@ -460,7 +450,6 @@ class QuoteAuthor(LineBase, QuoteDrawAdd):
         h = 14
         if not sender or len(sender) == 0:
             h = 0
-        #print('>>> [ QUOUTE sender ] {} = {}'.format(sender, h))
         return h
 
     def get_size(self, font_height):

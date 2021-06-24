@@ -39,7 +39,7 @@ def print_timeit(func):
             start = datetime.now()
             ret = func(*args, **kwargs)
             dt = datetime.now() - start
-            print(dt)
+            print('[timeit] {}'.format(dt))
             return ret
     else:
         _new_func = func
@@ -168,13 +168,11 @@ class ListView(QListView):
         return ret
 
     def enterEvent(self, e):
-        #print('enterEvent')
         self._entered = True
         self.animate_scroll_show(show=True)
         return super().enterEvent(e)
 
     def leaveEvent(self, e):
-        #print('leaveEvent')
         self._entered = False
         self.animate_scroll_show(show=False)
         self.update_items_indexes(self.last_index_at)
@@ -568,8 +566,6 @@ class ListDelegate(QItemDelegate):
         item = self.list_model.data(index)
 
         right = left + self.getItemWidth(item)
-
-        #print(":::", id(item))
 
         if type(item.item) == LoadMessagesButton:
             item.item.draw(painter, (left+50, top+20, right, bottom))
@@ -1662,7 +1658,6 @@ class MessagesListModel(ListModel):
 
     def set_items_dict(self, val):
         keys = list(val.keys())
-        #print(keys, len(keys))
         min_message_id = min(keys) if len(keys) > 0 else None
         self.min_message_id = min_message_id
 

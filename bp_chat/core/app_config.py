@@ -43,10 +43,6 @@ class SimpleConfig:
         print('[ LOAD ] si: {}'.format(self.server_uid))
         self._data = LocalDbConf.get_conf(self.server_uid)
         self._config = ConfigParser(allow_no_value=True)
-        # for title, d in self.structure.items():
-        #     d = self._fix_dict(d)
-        #     self._config[title] = d
-        #     self._data[title] = deepcopy(d)
 
         path = self.get_conf_path()
         if exists(path):
@@ -54,44 +50,27 @@ class SimpleConfig:
             self._config.read_string(text)
 
         for title, d in self.structure.items():
-            #print('...!!! {} {}'.format(title, type(d)))
             if type(d) == dict:
                 try:
                     c_d = self._config[title]
                 except:
                     c_d = {}
                 d_d = self._data.get(title, None)
-                # if d_d == None:
-                #     self._data[title] = d_d = deepcopy(self._fix_dict(d))
-                # cat = self._config_in_db.get(title, None)
-                # if cat == None:
-                #     self._config_in_db = cat = {}
                 for name, value in d.items():
-                    #print('...val: {}'.format(value))
-                    #print('..{} -> {} = {}'.format(name, type(value), hasattr(value, 'to_value')))
                     if hasattr(value, 'to_value'):
                         tp = value.to_value
                     else:
                         tp = type(value)
-                    #vl = tp(c_d[name])
-                    #d_d[name] = vl
                     if d_d != None and name in d_d:
-                        #print('...>> 1')
                         d_d[name] = tp(d_d[name])
                     else:
                         if d_d == None:
                             self._data[title] = d_d = {}
                         if name in c_d:
-                            #print('...>> 2')
                             d_d[name] = tp(c_d[name])
                         else:
                             vl = tp(d[name])
-                            #print('...!!! >> {} -> {}'.format(name, vl))
                             d_d[name] = vl
-                        # else:
-                        #     d_d[name] = tp(c_d[name])
-
-        #print(self._data)
     
     def _fix_dict(self, d):
         if type(d) == dict:
@@ -112,23 +91,16 @@ class SimpleConfig:
         if not exists(dir_path):
             os.makedirs(dir_path)
 
-        #print(self._data)
-
         for title, d in self.structure.items():
             if type(d) == dict:
-                #c_d = self._config[title]
                 d_d = self._data[title]
                 for name, value in d.items():
                     if hasattr(value, 'from_value'):
                         value = value.from_value(d_d[name])
                     else:
                         value = str(d_d[name])
-                    #c_d[name] = value
 
                     LocalDbConf.set_conf_value(self.server_uid, title, name, value)
-
-        # with open(path, 'w') as configfile:
-        #     self._config.write(configfile)
 
         if exists(path):
             os.remove(path)
@@ -144,7 +116,6 @@ class _AppConfig(SimpleConfig):
         super().__init__(conf_name=conf_name, structure=structure)
 
     def __getattr__(self, item):
-        #print(f'[ GET ] {item}')
         for a in self.structure:
             if item == a:
                 return self._data[a]
@@ -154,7 +125,6 @@ class _AppConfig(SimpleConfig):
                 st = self.structure[a]
                 for b in it:
                     if a + "_" + b == item:
-                        #print('\t-> {} . {}'.format(a, b))
                         st_b = st[b]
                         if hasattr(st_b, 'to_value'):
                             return st_b.to_value(it[b])
@@ -167,7 +137,6 @@ class _AppConfig(SimpleConfig):
 
         for a in self.structure:
             if item == a:
-                #return self.structure[a]
                 print('{} -> {}'.format(self._data[a], value))
 
             elif item.startswith(a + "_"):
@@ -176,10 +145,6 @@ class _AppConfig(SimpleConfig):
                 for b in it:
                     if a + "_" + b == item:
                         st_b = st[b]
-                        #print('{} -> {}'.format(it[b], value))
-                        # if hasattr(st_b, 'from_value'):
-                        #     it[b] = st_b.from_value(value)
-                        # else:
                         it[b] = value
 
 
@@ -353,9 +318,4 @@ if __name__=='__main__':
         }
     )
     conf.load()
-
-    print(conf.server_server)
-    print(conf.window_width)
-    print(conf.server)
-
     conf.window_main_split_h = '680'

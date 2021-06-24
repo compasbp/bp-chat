@@ -112,7 +112,6 @@ class LocalDbCore(_LocalDbCoreBase):
                     ), _args)
                 conn.commit()
         else:
-            #print('ADD')
             _names = ['server', id_name] + list(names)
             _values = [server, id_value] + [getattr(obj, a) if obj else values[i] for i, a in enumerate(names)]
             _ = cursor.execute("""INSERT INTO messages ({names}) VALUES ({values})""".format(

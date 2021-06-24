@@ -330,12 +330,11 @@ class LoadAnimation(QAbstractAnimation):
 
         if self.side < 0:
             currentTime = 1000 - currentTime
-        #a, b, c = self.poses
+        
         a = currentTime / 100.0
         b = currentTime / 100.0 - currentTime / 200.0
         c = currentTime / 100.0 + currentTime / 200.0
         self.poses[:] = [a*3, b, c]
-        #print(self.poses)
 
         self.need_update.emit()
 

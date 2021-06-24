@@ -1428,6 +1428,10 @@ class MessagesListDelegate(ListDelegate):
                 #self.last_load_min_message_id = -1
                 self.start_load_last_20()
 
+            elif self._mouse_on_image:
+                print("  ON IMAGE:", message.item.sender_id)
+                self.list_model.on_avatar_click(message.item)
+
             else:
 
                 drawer: MessageDrawer = message.drawer

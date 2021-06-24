@@ -338,7 +338,6 @@ class FileLine(LineBase):
             _lower_fullpath = _fullpath.lower()
             if _lower_fullpath.endswith('.jpg') or _lower_fullpath.endswith('.png'):
                 icon = QIcon(_fullpath)
-                #self.images[_file_uuid] = icon
                 isz = icon.actualSize(QSize(pixmap_w, pixmap_h))
                 if isz.width() > 0 and isz.height() > 0:
                     pixmap_w, pixmap_h = isz.width(), isz.height()
@@ -387,7 +386,6 @@ class FileLine(LineBase):
         )
 
         rect = (left, text_rect.top(), fileNameRect.right(), max([fileNameRect.bottom(), text_rect.top() + pixmap_h]))
-
         self.rect = rect
         mes_drawer.links.add(self)
 

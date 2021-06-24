@@ -1012,16 +1012,12 @@ class ListModel(QAbstractListModel):
 
     @items_dict.setter
     def items_dict(self, val):
-        # self._items_dict = val
-        # self._keys_list = sorted(list(val.keys()))
-
+        
         val, self._keys_list = self.set_items_dict(val)
         self._items_dict = val
 
         last = None
         for k in self._keys_list:
-            # if type(k) != int:
-            #     print(k, type(k))
             if k < 0:
                 continue
             m = val[k]

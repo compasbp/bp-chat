@@ -99,7 +99,6 @@ class SimpleConfig:
                         value = value.from_value(d_d[name])
                     else:
                         value = str(d_d[name])
-
                     LocalDbConf.set_conf_value(self.server_uid, title, name, value)
 
         if exists(path):

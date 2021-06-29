@@ -1635,6 +1635,9 @@ class MessagesListModel(ListModel):
 
     def getItemHeight(self, item, option, width):
 
+        if not item:
+            return 0
+
         if type(item.message) != LoadMessagesButton:
 
             second_text = self.getItemSecondText(item)
